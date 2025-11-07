@@ -71,3 +71,12 @@ helm install kafka bitnami/kafka \
   --create-namespace \
   -f values.yaml
 ```
+
+## 3. Producer and Consumer for Kafka Test
+### 3.0. Customize App Images
+**Producer**
+```bash
+docker build -f Dockerfile.producer -t dwnusa/my-producer:v0.1.1-amd64 .
+
+kubectl run kafka-producer --restart='Never'   --image dwnusa/my-producer:v0.1.1-amd64
+```
