@@ -17,4 +17,4 @@ RUN mkdir -p logs data_producers
 
 COPY producer_smd.py data_producers/
 
-CMD ["python3", "-m", "data_producers.producer"]
+CMD ["python3", "-m", "data_producers.producer_smd"]
