@@ -150,3 +150,29 @@ kubectl create -f airflow-spark-rbac.yaml
 kubectl patch svc airflow-api-server -n airflow \
   -p '{"spec": {"type": "NodePort", "ports": [{"port": 8080, "targetPort": 8080, "nodePort": 30097}]}}'
 ```
+
+## 5. Install Spark (version 3.xx)
+### 5.0. Customize Spark Image
+```bash
+docker build -t dwnusa/spark:v3.5.4-amd64 .
+```
+### 5.1. Helm Install Spark
+```bash
+helm repo add \
+  --force-update spark-operator https://kubeflow.github.io/spark-operator
+helm repo update
+```
+
+- job script 경로는 sparkapp 용 yaml 파일에서 정의하고 airflow namespace 에서 관리
+- airflow-spark-rbac 설정으로 airflow 가 spark-operator 자원을 접근하도록 허용
+
+```bash
+helm install spark-operator spark-operator/spark-operator \
+  --namespace spark-operator \
+  --create-namespace \
+  --set sparkJobNamespace=default \
+  --set rbac.create=true \
+  --set webhook.enable=true \
+  --set serviceAccounts.spark.name=spark \
+  --wait
+```
