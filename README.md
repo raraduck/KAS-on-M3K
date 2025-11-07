@@ -75,6 +75,8 @@ helm install kafka bitnami/kafka \
 ```bash
 # kubectl create namespace kafka
 kubectl apply -f kafka-ui.yaml
+minikube -p <MINIKUBE_PROFILE_NAME> service kafka-ui -n kafka
+# 192.168.xx.xx:30095
 ```
 
 ## 3. Producer and Consumer for Kafka Test

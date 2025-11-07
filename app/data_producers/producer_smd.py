@@ -40,25 +40,13 @@ def main():
     bootstrap_servers = [
         'kafka.kafka.svc.cluster.local:9092',  # broker 1
     ]
-    # bootstrap_servers = [
-    #     'kafka1:29092',  # broker 1
-    #     'kafka2:29093',  # broker 2
-    #     'kafka3:29094'   # broker 3
-    # ]
-    # bootstrap_servers = [
-    #     '0.0.0.0:9092',  # broker 1
-    #     '0.0.0.0:9093',  # broker 2
-    #     '0.0.0.0:9094'   # broker 3
-    # ]
     # Kafka Producer 생성
     producer = KafkaProducer(
         bootstrap_servers=bootstrap_servers,  # Kafka 브로커 주소
         value_serializer=json_serializer,    # 값 직렬화 함수
         acks='all'                           # 메시지 수신 확인 레벨 (all: 모든 복제본 확인)
     )
-
     print("Kafka Producer 시작. Ctrl+C로 종료.")
-
     try:
         # 5초마다 메시지 전송
         while True:
