@@ -36,20 +36,16 @@ def iter_smd_csv_rows():
         with open(csv_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # 각 행을 float 또는 int로 변환 (문자열 → 수치)
+                # 각 행을 float 또는 int로 변환
                 numeric_row = {k: try_parse_number(v) for k, v in row.items()}
-
-                # 타임스탬프 필드가 존재하지 않으면 현재 시간으로 대체
-                if "timestamp" not in numeric_row:
-                    numeric_row["timestamp"] = datetime.now().isoformat()
-
+                # CSV의 timestamp 대신 전송 시각을 덮어쓰기 (선택)
+                numeric_row["send_timestamp"] = datetime.now().isoformat()
                 yield numeric_row
 
 
 def try_parse_number(value):
-    """문자열을 float/int로 변환, 실패 시 원래 문자열 반환"""
+    """문자열을 float/int로 변환, 실패 시 그대로 반환"""
     try:
-        # 정수 혹은 부동소수점 변환
         if "." in value or "e" in value or "E" in value:
             return float(value)
         else:
@@ -58,11 +54,18 @@ def try_parse_number(value):
         return value
 
 
-# -------------------- Kafka 전송 루프 -------------------- #
+# -------------------- Kafka 전송 콜백 -------------------- #
+def on_send_success(record_metadata):
+    print(f"✅ 성공: topic={record_metadata.topic}, partition={record_metadata.partition}, offset={record_metadata.offset}")
+
+def on_send_error(excp):
+    print(f"❌ 실패: {excp}")
+
+
+# -------------------- 메인 루프 -------------------- #
 def main():
-    bootstrap_servers = [
-        'kafka.kafka.svc.cluster.local:9092',
-    ]
+    bootstrap_servers = ['kafka.kafka.svc.cluster.local:9092']
+    topic_name = "server-machine-usage"
 
     producer = KafkaProducer(
         bootstrap_servers=bootstrap_servers,
@@ -70,29 +73,27 @@ def main():
         acks='all'
     )
 
-    topic_name = "server-machine-usage"
-    print("🚀 Kafka Producer 시작. Ctrl+C로 종료.")
-    try:
-        for message in iter_smd_csv_rows():
-            # 전송
-            future = producer.send(topic_name, value=message)
-            future.add_callback(on_send_success).add_errback(on_send_error)
+    print("🚀 Kafka Producer 시작 (무한 반복). Ctrl+C로 종료.")
 
-            print(f"📤 전송: {message}")
-            time.sleep(0.5)  # 전송 간격 (필요 시 조정)
+    try:
+        while True:  # 🔁 무한 루프
+            for message in iter_smd_csv_rows():
+                # Kafka로 전송
+                future = producer.send(topic_name, value=message)
+                future.add_callback(on_send_success).add_errback(on_send_error)
+
+                print(f"📤 전송: {message}")
+                time.sleep(0.5)  # 전송 간격 조정 가능 (초당 2건)
+            
+            # 한 바퀴 다 돌았으면 대기 후 다시 시작
+            print("🔁 CSV 전체 전송 완료. 10초 후 재시작...\n")
+            time.sleep(10)
+
     except KeyboardInterrupt:
         print("🛑 프로듀서 종료")
     finally:
         producer.flush()
         producer.close()
-
-
-# -------------------- 콜백 -------------------- #
-def on_send_success(record_metadata):
-    print(f"✅ 성공: topic={record_metadata.topic}, partition={record_metadata.partition}, offset={record_metadata.offset}")
-
-def on_send_error(excp):
-    print(f"❌ 전송 실패: {excp}")
 
 
 # -------------------- 실행 -------------------- #
