@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nvidia-smi
+  namespace: default
+spec:
+  restartPolicy: Never
+  containers:
+    - name: nvidia-smi
+      image: nvidia/cuda:12.2.0-base-ubuntu22.04   # ✅ CUDA 베이스 이미지
+      command: ["nvidia-smi"]
+      resources:
+        limits:
+          nvidia.com/gpu: 1                        # ✅ GPU 요청 (필수)
