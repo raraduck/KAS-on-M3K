@@ -1,0 +1,27 @@
+# 데이터 수집
+# yfinance==0.2.54
+kafka-python==2.0.2
+python-dotenv==1.0.0
+
+# 주식 데이터 분석
+pandas==1.5.3
+numpy==1.24.3
+# pandas-ta # ==0.3.14b0 # 0.3.14b0 # 기술적 지표 계산
+
+# 스파크 관련
+pyspark==3.4.1
+findspark==2.0.1
+py4j==0.10.9.7
+delta-spark==2.4.0
+
+# 알림 관련
+requests==2.31  # Slack 알림
+slackclient==2.9.4  # Slack API 클라이언트
+
+# 워크플로우 관리 (선택사항)
+apache-airflow==2.6.3
+apache-airflow-providers-apache-spark==4.1.0
+
+# 유틸리티
+pytest==7.3.1
+twilio==8.0.0  # SMS 알림 (선택사항) 
