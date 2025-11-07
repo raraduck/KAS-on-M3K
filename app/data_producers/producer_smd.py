@@ -1,72 +1,100 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from kafka import KafkaProducer
+import os
+import glob
+import csv
 import json
 import time
-import random
 from datetime import datetime
+from kafka import KafkaProducer
 
+
+# -------------------- JSON 직렬화 -------------------- #
 def json_serializer(data):
-    """데이터를 JSON 형식으로 직렬화하는 함수"""
+    """데이터를 JSON 형식으로 직렬화"""
     return json.dumps(data).encode('utf-8')
 
-def get_random_message():
-    """임의의 메시지를 생성하는 함수"""
-    messages = [
-        {"user_id": random.randint(1, 1000), 
-         "event": "login",                          "timestamp": datetime.now().isoformat()}, # time.time()},
-        {"user_id": random.randint(1, 1000), 
-         "event": "purchase", 
-         "amount": random.randint(10, 1000),        "timestamp": datetime.now().isoformat()}, # time.time()},
-        {"user_id": random.randint(1, 1000), 
-         "event": "logout",                         "timestamp": datetime.now().isoformat()}, # time.time()},
-        {"user_id": random.randint(1, 1000), 
-         "event": "view_page", 
-         "page": f"page_{random.randint(1, 100)}",  "timestamp": datetime.now().isoformat()} # time.time()}
-    ]
-    return random.choice(messages)
 
-def on_send_success(record_metadata):
-    """메시지 전송 성공 시 호출되는 콜백 함수"""
-    print(f"메시지 전송 성공 - 토픽: {record_metadata.topic}, 파티션: {record_metadata.partition}, 오프셋: {record_metadata.offset}")
+# -------------------- CSV 파일 제너레이터 -------------------- #
+def iter_smd_csv_rows():
+    """
+    data/machine-*-*/ 하위의 *_test.csv 파일을 순회하며
+    각 파일의 한 줄(row)을 yield
+    """
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    data_pattern = os.path.join(base_dir, "data", "machine-*", "*_test.csv")
+    csv_files = sorted(glob.glob(data_pattern))
 
-def on_send_error(excp):
-    """메시지 전송 실패 시 호출되는 콜백 함수"""
-    print(f"메시지 전송 실패: {excp}")
+    if not csv_files:
+        print(f"⚠️ CSV 파일을 찾지 못했습니다: {data_pattern}")
+        return
 
-def main():
-    # Kafka 브로커 목록 (다중 브로커)
-    bootstrap_servers = [
-        'kafka.kafka.svc.cluster.local:9092',  # broker 1
-    ]
-    # Kafka Producer 생성
-    producer = KafkaProducer(
-        bootstrap_servers=bootstrap_servers,  # Kafka 브로커 주소
-        value_serializer=json_serializer,    # 값 직렬화 함수
-        acks='all'                           # 메시지 수신 확인 레벨 (all: 모든 복제본 확인)
-    )
-    print("Kafka Producer 시작. Ctrl+C로 종료.")
+    for csv_path in csv_files:
+        print(f"📂 읽는 중: {os.path.basename(csv_path)}")
+
+        with open(csv_path, 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # 각 행을 float 또는 int로 변환 (문자열 → 수치)
+                numeric_row = {k: try_parse_number(v) for k, v in row.items()}
+
+                # 타임스탬프 필드가 존재하지 않으면 현재 시간으로 대체
+                if "timestamp" not in numeric_row:
+                    numeric_row["timestamp"] = datetime.now().isoformat()
+
+                yield numeric_row
+
+
+def try_parse_number(value):
+    """문자열을 float/int로 변환, 실패 시 원래 문자열 반환"""
     try:
-        # 5초마다 메시지 전송
-        while True:
-            message = get_random_message()
-            
-            # 메시지 전송 (비동기)
-            future = producer.send('server-machine-usage', value=message)
-            
-            # 콜백 등록
+        # 정수 혹은 부동소수점 변환
+        if "." in value or "e" in value or "E" in value:
+            return float(value)
+        else:
+            return int(value)
+    except Exception:
+        return value
+
+
+# -------------------- Kafka 전송 루프 -------------------- #
+def main():
+    bootstrap_servers = [
+        'kafka.kafka.svc.cluster.local:9092',
+    ]
+
+    producer = KafkaProducer(
+        bootstrap_servers=bootstrap_servers,
+        value_serializer=json_serializer,
+        acks='all'
+    )
+
+    topic_name = "server-machine-usage"
+    print("🚀 Kafka Producer 시작. Ctrl+C로 종료.")
+    try:
+        for message in iter_smd_csv_rows():
+            # 전송
+            future = producer.send(topic_name, value=message)
             future.add_callback(on_send_success).add_errback(on_send_error)
-            
-            print(f"메시지 전송: {message}")
-            time.sleep(5)
-            
+
+            print(f"📤 전송: {message}")
+            time.sleep(0.5)  # 전송 간격 (필요 시 조정)
     except KeyboardInterrupt:
-        print("프로듀서 종료")
+        print("🛑 프로듀서 종료")
     finally:
-        # 남은 메시지 전송 및 리소스 해제
         producer.flush()
         producer.close()
 
+
+# -------------------- 콜백 -------------------- #
+def on_send_success(record_metadata):
+    print(f"✅ 성공: topic={record_metadata.topic}, partition={record_metadata.partition}, offset={record_metadata.offset}")
+
+def on_send_error(excp):
+    print(f"❌ 전송 실패: {excp}")
+
+
+# -------------------- 실행 -------------------- #
 if __name__ == "__main__":
-    main() 
+    main()
