@@ -12,9 +12,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install https://www.pandas-ta.dev/assets/zip/pandas_ta-0.3.14b.tar.gz yfinance
 
-COPY data_consumers .
-
 # 로그 디렉토리 생성
 RUN mkdir -p logs
 
-CMD ["python3", "-m", "data_consumers.consume_kafka"]
+COPY data_consumers .
+
+
+CMD ["python3", "-m", "consume_smd"]
