@@ -10,7 +10,7 @@ RUN apt-get update && \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install https://www.pandas-ta.dev/assets/zip/pandas_ta-0.3.14b.tar.gz yfinance
+# RUN pip install https://www.pandas-ta.dev/assets/zip/pandas_ta-0.3.14b.tar.gz yfinance
 
 COPY data_producers .
 
