@@ -107,3 +107,46 @@ kubectl exec -it kafka-controller-0 -n kafka \
 kafka-topics.sh --list --bootstrap-server kafka.kafka.svc.cluster.local:9092
 ```
 
+
+## 4. Install Airflow (version 3.xx)
+### 4.0. Customize Airflow Image
+```bash
+docker build -t dwnusa/airflow:v3.0.2-jdk17-pyspark-3.5.5-amd64 .
+```
+### 4.1. Mount PV, PVC
+```bash
+kubectl create -f pv-airflow.yaml
+kubectl create -f pvc-airflow.yaml -n airflow
+```
+### 4.2. Helm Install Airflow
+```bash
+helm repo add \
+  --force-update apache-airflow https://airflow.apache.org
+helm repo update
+```
+```bash
+helm upgrade \
+  --install airflow apache-airflow/airflow \
+  --namespace airflow \
+  -f airflow-values.yaml
+
+# or 
+
+# helm upgrade --install airflow apache-airflow/airflow  \
+#     --namespace airflow \
+#     --create-namespace \
+#     --set dags.persistence.enabled=true \
+#     --set dags.persistence.existingClaim=airflow-dags \
+#     --set airflow.extraPipPackages="{apache-airflow-providers-apache-spark,apache-airflow-providers-cncf-kubernetes}" \
+#     --set postgresql.image.tag=latest
+```
+### 4.3. RBAC for cross namespace between airflow and spark-operator
+```bash
+kubectl create -f airflow-spark-rbac.yaml
+```
+
+### 4.4. Open NodePort Access
+```bash
+kubectl patch svc airflow-api-server -n airflow \
+  -p '{"spec": {"type": "NodePort", "ports": [{"port": 8080, "targetPort": 8080, "nodePort": 30097}]}}'
+```

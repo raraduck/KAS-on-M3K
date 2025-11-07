@@ -1,0 +1,68 @@
+# ------------------------------
+# Airflow Core Image Settings
+# ------------------------------
+images:
+  airflow:
+    repository: dwnusa/airflow
+    tag: v3.0.2-jdk17-pyspark-3.5.5-amd64
+    pullPolicy: IfNotPresent
+
+# ------------------------------
+# PostgreSQL (내장 DB) 설정
+# ------------------------------
+postgresql:
+  enabled: true
+  image:
+    tag: latest         # 최신 PostgreSQL 사용
+  persistence:
+    enabled: false      # 로컬 테스트 환경에서는 굳이 PV/PVC 안 씀
+  # auth:
+  #   username: airflow
+  #   password: airflow
+  #   database: airflow
+
+# ------------------------------
+# DAGs Volume Mounts
+# ------------------------------
+dags:
+  persistence:
+    enabled: true
+    existingClaim: airflow-dags  # ✅ PVC 이름 지정
+  gitSync:
+    enabled: false      # Git Sync 기능 비활성화
+    # repo: https://github.com/dave126-kr/metacode-k8s.git
+    # branch: main
+    # subPath: airflow-dags
+    # depth: 1
+    # wait: 10
+
+logs:
+  persistence:
+    enabled: false
+
+_spark_volume: &spark_volume
+  - name: spark-yaml-volume
+    hostPath:
+      path: /opt/spark # /opt/kafka/yaml
+      type: DirectoryOrCreate
+
+_spark_mount: &spark_mount
+  - name: spark-yaml-volume
+    mountPath: /opt/spark-yaml
+    readOnly: false
+
+# 재사용
+scheduler:
+  replicas: 1
+  extraVolumes: *spark_volume
+  extraVolumeMounts: *spark_mount
+
+triggerer:
+  replicas: 1
+  extraVolumes: *spark_volume
+  extraVolumeMounts: *spark_mount
+
+workers:
+  replicas: 1
+  extraVolumes: *spark_volume
+  extraVolumeMounts: *spark_mount

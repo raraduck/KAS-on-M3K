@@ -1,0 +1,46 @@
+# ClusterRole: Airflow가 SparkApplication을 관리할 수 있는 권한
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: airflow-spark-operator-access
+rules:
+  # SparkApplication 관리
+  - apiGroups: ["sparkoperator.k8s.io"]
+    resources: ["sparkapplications", "sparkapplications/status"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  
+  # ScheduledSparkApplication 관리 (선택사항)
+  - apiGroups: ["sparkoperator.k8s.io"]
+    resources: ["scheduledsparkapplications", "scheduledsparkapplications/status"]
+    verbs: ["create", "delete", "get", "list", "patch", "update", "watch"]
+  
+  # Spark Pods 조회 (모니터링용)
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch"]
+  
+  # Services 조회
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+
+---
+# ClusterRoleBinding: airflow-worker ServiceAccount에 권한 부여
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: airflow-spark-operator-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: airflow-spark-operator-access
+subjects:
+  # Airflow Worker ServiceAccount
+  - kind: ServiceAccount
+    name: airflow-worker
+    namespace: airflow
+  
+  # Airflow Scheduler ServiceAccount (DAG 파싱용)
+  - kind: ServiceAccount
+    name: airflow-scheduler
+    namespace: airflow
