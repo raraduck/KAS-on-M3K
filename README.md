@@ -76,7 +76,27 @@ helm install kafka bitnami/kafka \
 ### 3.0. Customize App Images
 **Producer**
 ```bash
-docker build -f Dockerfile.producer -t dwnusa/my-producer:v0.1.1-amd64 .
+# docker build -f Dockerfile.producer -t dwnusa/smd-producer:v0.0.1-amd64 .
 
-kubectl run kafka-producer --restart='Never'   --image dwnusa/my-producer:v0.1.1-amd64
+kubectl run kafka-producer --restart='Never'   --image dwnusa/smd-producer:v0.0.1-amd64
 ```
+**Consumer**
+```bash
+# docker build -f Dockerfile.consumer -t dwnusa/smd-consumer:v0.0.1-amd64 .
+
+kubectl run kafka-consumer --restart='Never'   --image dwnusa/smd-consumer:v0.0.1-amd64
+```
+### 3.1. Create Topic 
+```bash
+# Topic 생성
+```bash
+kubectl exec -it kafka-controller-0 -n kafka \
+  -- kafka-topics.sh --create \
+  --topic server-machine-usage \
+  --bootstrap-server kafka.kafka.svc.cluster.local:9092 \
+  --replication-factor 1 \
+  --partitions 3
+
+kafka-topics.sh --list --bootstrap-server kafka.kafka.svc.cluster.local:9092
+```
+
