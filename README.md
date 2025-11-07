@@ -71,6 +71,11 @@ helm install kafka bitnami/kafka \
   --create-namespace \
   -f values.yaml
 ```
+### 2.1. kafka-ui (manual install)
+```bash
+# kubectl create namespace kafka
+kubectl apply -f kafka-ui.yaml
+```
 
 ## 3. Producer and Consumer for Kafka Test
 ### 3.0. Customize App Images
