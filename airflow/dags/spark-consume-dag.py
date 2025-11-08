@@ -42,10 +42,13 @@ with DAG(
         namespace="default",
         image="nvidia/cuda:12.2.0-base-ubuntu22.04",
         cmds=["nvidia-smi"],
-        resources={"limit_gpu": 1},   # GPU 1개 요청
+        in_cluster=True,
         get_logs=True,
-        is_delete_operator_pod=True,  # 실행 후 Pod 삭제
-        in_cluster=True
+        is_delete_operator_pod=True,
+        container_resources={
+            "limits": {"nvidia.com/gpu": 1},
+            "requests": {"nvidia.com/gpu": 1},
+        },
     )
 
     # 실행 순서: hello → spark → GPU 체크
