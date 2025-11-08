@@ -43,7 +43,7 @@ logs:
 _spark_volume: &spark_volume
   - name: spark-yaml-volume
     hostPath:
-      path: /opt/spark # /opt/kafka/yaml
+      path: /opt/spark/yaml # /opt/kafka/yaml
       type: DirectoryOrCreate
 
 _spark_mount: &spark_mount
