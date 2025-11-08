@@ -48,7 +48,7 @@ json_df.show(10, truncate=False)
 json_df.write \
     .format("jdbc") \
     .option("url", "jdbc:postgresql://airflow-postgresql.airflow.svc.cluster.local:5432/postgres") \
-    .option("dbtable", "user_events_stream") \
+    .option("dbtable", "smd_raw_data_lake") \
     .option("user", "postgres") \
     .option("password", "postgres") \
     .option("driver", "org.postgresql.Driver") \

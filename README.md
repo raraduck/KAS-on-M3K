@@ -191,3 +191,9 @@ helm install spark-operator spark-operator/spark-operator \
   --set serviceAccounts.spark.name=spark \
   --wait
 ```
+
+## 6. Connect to airflow-postgres 
+```bash
+kubectl exec -it airflow-postgresql-0 -n airflow -- bash
+psql -h localhost -U postgres -d postgres
+```
