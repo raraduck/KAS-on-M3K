@@ -32,7 +32,8 @@ with DAG(
         task_id="submit_spark_application",
         in_cluster=True,              
         namespace="default",
-        application_file="/opt/spark/yaml/spark-consume.yaml", #"spark-consume.yaml",  
+        application_file="{{ '/opt/spark/yaml/spark-consume.yaml' }}",  # ✅ Jinja 렌더링 무시
+        #"spark-consume.yaml",  
     )
 
     # (3) NVIDIA SMI Pod 실행
