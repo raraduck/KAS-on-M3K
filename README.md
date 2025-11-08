@@ -10,12 +10,27 @@ minikube start \
     --memory=200g \
     --container-runtime=docker \
     --gpus=all \
-    --mount \
-    --mount-string="<HOSTPATH_KAFKA>:/opt/kafka" \
-    --mount \
-    --mount-string="<HOSTPATH_AIRFLOW>:/opt/airflow" \
-    --mount \
-    --mount-string="<HOSTPATH_SPARK>:/opt/spark" \
+    # 아래 경로중 하나만 가능 (minikube는 한 번에 하나의 mount만 처리)
+    # --mount \
+    # --mount-string="<HOSTPATH_KAFKA>:/opt/kafka" \
+    # --mount \
+    # --mount-string="<HOSTPATH_AIRFLOW>:/opt/airflow" \
+    # --mount \
+    # --mount-string="<HOSTPATH_SPARK>:/opt/spark" \
+```
+```bash
+# 3개 경로를 모두 추가하려면 이와 같이 별도 요청
+minikube mount --profile m16 <HOSTPATH_KAFKA>:/opt/kafka & # 터미널 1
+minikube mount --profile m16 <HOSTPATH_AIRFLOW>:/opt/airflow & # 터미널 2
+minikube mount --profile m16 <HOSTPATH_SPARK>:/opt/spark & # 터미널 3
+```
+```bash
+minikube ssh -p <MINIKUBE_PROFILE_NAME> # 접속해서 경로 직접 확인
+```
+- 호스트로 포트 오픈하기
+```bash
+minikube -p <MINIKUBE_PROFILE_NAME> service <SVC_NAME> -n <NAMESPACE>
+minikube -p m16 service list
 ```
 
 ### 1.1. Install kubectl

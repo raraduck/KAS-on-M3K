@@ -1,14 +1,21 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json
-from pyspark.sql.types import StructType, StringType, IntegerType
+from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 import os
 import sys
 
 # Kafka JSON 스키마 정의
-schema = StructType() \
-    .add("user_id", IntegerType()) \
-    .add("event", StringType()) \
-    .add("timestamp", StringType())
+# schema = StructType() \
+#     .add("user_id", IntegerType()) \
+#     .add("event", StringType()) \
+#     .add("timestamp", StringType())
+
+schema = StructType([
+    StructField("timestamp", DoubleType(), True),
+    *[StructField(f"col_{i}", DoubleType(), True) for i in range(38)],
+    StructField("label", DoubleType(), True),
+    StructField("send_timestamp", StringType(), True)
+])
 
 # Spark 세션
 spark = SparkSession.builder \
