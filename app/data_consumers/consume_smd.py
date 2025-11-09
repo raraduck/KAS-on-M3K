@@ -39,7 +39,7 @@ def main():
         enable_auto_commit=True,
         group_id='smd-consumer-group',
         value_deserializer=json_deserializer,
-        consumer_timeout_ms=10000                 # 무한 대기
+        consumer_timeout_ms=120000                 # 2분 대기 (120초)
     )
 
     print("🚀 Kafka SMD Consumer 시작. Ctrl+C로 종료.")

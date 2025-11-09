@@ -99,14 +99,32 @@ minikube -p <MINIKUBE_PROFILE_NAME> service kafka-ui -n kafka
 **Producer**
 ```bash
 # docker build -f Dockerfile.producer -t dwnusa/smd-producer:v0.0.1-amd64 .
+docker build \
+  --no-cache \
+  -f Dockerfile.producer \
+  -t dwnusa/smd-producer:v0.0.2-amd64 .
 
-kubectl run kafka-producer --restart='Never'   --image dwnusa/smd-producer:v0.0.1-amd64
+docker push dwnusa/smd-producer:v0.0.2-amd64
+
+kubectl run smd-producer \
+  --restart='Never' \
+  --image-pull-policy='Always' \
+  --image dwnusa/smd-producer:v0.0.2-amd64
 ```
 **Consumer**
 ```bash
 # docker build -f Dockerfile.consumer -t dwnusa/smd-consumer:v0.0.1-amd64 .
+docker build \
+  --no-cache \
+  -f Dockerfile.consumer \
+  -t dwnusa/smd-consumer:v0.0.2-amd64 .
 
-kubectl run kafka-consumer --restart='Never'   --image dwnusa/smd-consumer:v0.0.1-amd64
+docker push dwnusa/smd-consumer:v0.0.2-amd64
+
+kubectl run smd-consumer \
+  --restart='Never' \
+  --image-pull-policy='Always' \
+  --image dwnusa/smd-consumer:v0.0.2-amd64
 ```
 ### 3.1. Create Topic 
 ```bash
