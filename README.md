@@ -193,7 +193,55 @@ helm install spark-operator spark-operator/spark-operator \
 ```
 
 ## 6. Connect to airflow-postgres 
+
+> **Note:** The RBAC setup required for cross-namespace access between Airflow and Spark Operator was already applied in [Section 4.3](#43-rbac-for-cross-namespace-between-airflow-and-spark-operator).
+
 ```bash
-kubectl exec -it airflow-postgresql-0 -n airflow -- bash
-psql -h localhost -U postgres -d postgres
+kubectl create -f airflow-spark-rbac.yaml
+```
+
+If PostgreSQL (or other containers) are supposed to run independently in the `default` namespace,  
+you may also need to apply an additional RBAC configuration:
+
+```bash
+kubectl create -f airflow-default-rbac.yaml
+```
+
+## 7. Install postgresql (docker)
+
+```bash
+mkdir -p /home2/dwnusa/pgdata
+chmod 700 /home2/dwnusa/pgdata
+
+docker run -d \
+  --name pg16 \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=testdb \
+  -v /home2/dwnusa/pgdata:/var/lib/postgresql/data \
+  -p 12345:5432 \
+  postgres:16
+```
+
+| 옵션                                                  | 의미                                  |
+| --------------------------------------------------- | ----------------------------------- |
+| `-v /home2/dwnusa/pgdata:/var/lib/postgresql/data`  | 데이터를 `/home2/dwnusa/pgdata` 에 영구 저장 |
+| `-p 12345:5432`                                     | 외부 접속 포트를 12345로 변경                 |
+| `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB` | 초기 사용자/DB 설정                        |
+
+> 이후 컨테이너를 지워도 /home2/dwnusa/pgdata 안의 데이터는 남습니다.
+
+```bash
+psql -h <PUBLIC_IP> -p 12345 -U postgres -d testdb
+```
+```python
+import psycopg2
+conn = psycopg2.connect(
+    host=<PUBLIC_IP>,
+    port=55432,
+    user="postgres",
+    password="postgres",
+    dbname="testdb"
+)
+print(conn)
 ```
