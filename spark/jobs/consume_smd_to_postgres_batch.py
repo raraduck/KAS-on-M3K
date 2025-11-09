@@ -3,6 +3,10 @@ from pyspark.sql.functions import col, from_json
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 import os
 import sys
+from datetime import datetime, timedelta
+
+# 예: 하루 전 타임스탬프 계산
+yesterday = (datetime.now() - timedelta(days=1)).timestamp() * 1000  # milliseconds
 
 # Kafka JSON 스키마 정의
 # schema = StructType() \
@@ -23,13 +27,21 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # Kafka에서 데이터 배치로 읽기 (처음부터 전체)
+# df = spark.read \
+#     .format("kafka") \
+#     .option("kafka.bootstrap.servers", "kafka.kafka.svc.cluster.local:9092") \
+#     .option("subscribe", "server-machine-usage") \
+#     .option("startingOffsets", "earliest") \
+#     .load()
+
+# Kafka offset range 관리
 df = spark.read \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "kafka.kafka.svc.cluster.local:9092") \
     .option("subscribe", "server-machine-usage") \
-    .option("startingOffsets", "earliest") \
+    .option("startingOffsetsByTimestamp", str(int(yesterday))) \
+    .option("endingOffsets", "latest") \
     .load()
-
 
 if df.count() == 0:
     print("Kafka 토픽에서 데이터를 찾을 수 없습니다. 종료합니다.")
