@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json, to_timestamp
+from pyspark.sql.functions import col, from_json, to_timestamp, lit
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 import os
 import sys
@@ -54,6 +54,8 @@ filtered_df = json_df \
 
 print("\n[데이터 예시 출력]")
 filtered_df.show(10, truncate=False)
+
+filtered_df = filtered_df.drop("ts")
 
 # PostgreSQL에 저장 (기존 내용 덮어쓰기)
 filtered_df.write \
