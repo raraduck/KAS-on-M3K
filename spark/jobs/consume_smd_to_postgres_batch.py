@@ -1,12 +1,13 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, from_json
+from pyspark.sql.functions import col, from_json, to_timestamp
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 import os
 import sys
 from datetime import datetime, timedelta
 
-# 예: 하루 전 타임스탬프 계산
-yesterday = (datetime.now() - timedelta(days=1)).timestamp() * 1000  # milliseconds
+
+# 1️⃣ 어제 시점 (ISO 8601, microseconds 포함)
+yesterday_iso = (datetime.now() - timedelta(days=1)).isoformat(timespec='microseconds')
 
 # Kafka JSON 스키마 정의
 # schema = StructType() \
@@ -45,11 +46,14 @@ json_df = df.selectExpr("CAST(value AS STRING) as json_str") \
     .select(from_json(col("json_str"), schema).alias("data")) \
     .select("data.*")
 
-# 타임스탬프 기준 필터링 (어제 이후만)
-filtered_df = json_df.filter(col("timestamp") >= yesterday)
+
+# 6️⃣ send_timestamp → timestamp 변환 + 필터링
+filtered_df = json_df \
+    .withColumn("ts", to_timestamp(col("send_timestamp"))) \
+    .filter(col("ts") >= to_timestamp(lit(yesterday_iso)))
 
 print("\n[데이터 예시 출력]")
-filtered_df.show(5, truncate=False)
+filtered_df.show(10, truncate=False)
 
 # PostgreSQL에 저장 (기존 내용 덮어쓰기)
 filtered_df.write \
