@@ -36,8 +36,8 @@ df = spark.read \
     .option("endingOffsets", "latest") \
     .load()
 
-if df.count() == 0:
-    print("Kafka 토픽에서 데이터를 찾을 수 없습니다. 종료합니다.")
+if df.isEmpty():
+    print("Kafka 토픽에서 읽을 데이터가 없습니다. 종료합니다.")
     spark.stop()
     sys.exit(1)
 
@@ -46,16 +46,18 @@ json_df = df.selectExpr("CAST(value AS STRING) as json_str") \
     .select(from_json(col("json_str"), schema).alias("data")) \
     .select("data.*")
 
-
-# 6️⃣ send_timestamp → timestamp 변환 + 필터링
-filtered_df = json_df \
-    .withColumn("ts", to_timestamp(col("send_timestamp"))) \
-    .filter(col("ts") >= to_timestamp(lit(yesterday_iso)))
+# 6️⃣ send_timestamp → timestamp 변환 + 필터링 (1줄)
+filtered_df = json_df.filter(
+    to_timestamp(col("send_timestamp")) >= to_timestamp(lit(yesterday_iso))
+)
+# 6️⃣ send_timestamp → timestamp 변환 + 필터링 (2줄-비효율)
+# filtered_df = json_df \
+#     .withColumn("ts", to_timestamp(col("send_timestamp"))) \
+#     .filter(col("ts") >= to_timestamp(lit(yesterday_iso)))
+# filtered_df = filtered_df.drop("ts")
 
 print("\n[데이터 예시 출력]")
 filtered_df.show(10, truncate=False)
-
-filtered_df = filtered_df.drop("ts")
 
 # PostgreSQL에 저장 (기존 내용 덮어쓰기)
 filtered_df.write \
