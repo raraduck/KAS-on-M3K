@@ -6,7 +6,7 @@ import sys
 from datetime import datetime, timedelta
 
 # 예: 하루 전 타임스탬프 계산
-yesterday = (datetime.now() - timedelta(days=1)).timestamp() * 1000  # milliseconds
+# yesterday = (datetime.now() - timedelta(days=1)).timestamp() * 1000  # milliseconds
 
 # Kafka JSON 스키마 정의
 # schema = StructType() \
