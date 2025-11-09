@@ -27,19 +27,11 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # Kafka에서 데이터 배치로 읽기 (처음부터 전체)
-# df = spark.read \
-#     .format("kafka") \
-#     .option("kafka.bootstrap.servers", "kafka.kafka.svc.cluster.local:9092") \
-#     .option("subscribe", "server-machine-usage") \
-#     .option("startingOffsets", "earliest") \
-#     .load()
-
-# Kafka offset range 관리
 df = spark.read \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "kafka.kafka.svc.cluster.local:9092") \
     .option("subscribe", "server-machine-usage") \
-    .option("startingOffsetsByTimestamp", str(int(yesterday))) \
+    .option("startingOffsets", "earliest") \
     .option("endingOffsets", "latest") \
     .load()
 
@@ -48,16 +40,19 @@ if df.count() == 0:
     spark.stop()
     sys.exit(1)
 
-# Kafka 메시지(JSON)를 파싱
+# JSON 파싱
 json_df = df.selectExpr("CAST(value AS STRING) as json_str") \
     .select(from_json(col("json_str"), schema).alias("data")) \
     .select("data.*")
 
+# 타임스탬프 기준 필터링 (어제 이후만)
+filtered_df = json_df.filter(col("timestamp") >= yesterday)
+
 print("\n[데이터 예시 출력]")
-json_df.show(10, truncate=False)
+filtered_df.show(5, truncate=False)
 
 # PostgreSQL에 저장 (기존 내용 덮어쓰기)
-json_df.write \
+filtered_df.write \
     .format("jdbc") \
     .option("url", "jdbc:postgresql://airflow-postgresql.airflow.svc.cluster.local:5432/postgres") \
     .option("dbtable", "smd_raw_data_lake") \
