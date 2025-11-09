@@ -49,8 +49,8 @@ def save_to_postgres(df):
     """
     cur.execute(create_sql)
 
-    # 기존 테이블 덮어쓰기(Overwrite)
-    cur.execute(f"TRUNCATE TABLE {TABLE_NAME};")
+    # # 기존 테이블 덮어쓰기(Overwrite)
+    # cur.execute(f"TRUNCATE TABLE {TABLE_NAME};")
 
     # 컬럼명 구성
     cols = [f"col_{i}" for i in range(38)]
