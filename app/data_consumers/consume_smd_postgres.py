@@ -102,7 +102,7 @@ def main():
         enable_auto_commit=True,
         group_id="smd-consumer-group",
         value_deserializer=json_deserializer,
-        consumer_timeout_ms=0  # 실시간 스트리밍 모드 (무한 대기)
+        consumer_timeout_ms=120000
     )
 
     print("🚀 Kafka → PostgreSQL Consumer 시작.")
