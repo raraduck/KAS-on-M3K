@@ -83,11 +83,11 @@ def main():
                 future.add_callback(on_send_success).add_errback(on_send_error)
 
                 print(f"📤 전송: {message}")
-                time.sleep(0.5)  # 전송 간격 조정 가능 (초당 2건)
+                time.sleep(60)  # 전송 간격 조정 가능 (분당 1건)
             
             # 한 바퀴 다 돌았으면 대기 후 다시 시작
             print("🔁 CSV 전체 전송 완료. 10초 후 재시작...\n")
-            time.sleep(10)
+            time.sleep(60)
 
     except KeyboardInterrupt:
         print("🛑 프로듀서 종료")
