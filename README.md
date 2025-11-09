@@ -264,6 +264,9 @@ conn = psycopg2.connect(
 print(conn)
 ```
 
+## Diagram
+<img src="./KAS-on-M3K-dark.png" width="500">
+
 ## Todolist
 
 [ ] PCA 사용하여 정보량이 높은 feature 확인하기 (sklearn container)
