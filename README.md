@@ -263,3 +263,20 @@ conn = psycopg2.connect(
 )
 print(conn)
 ```
+
+## Todolist
+
+[ ] PCA 사용하여 정보량이 높은 feature 확인하기 (sklearn container)
+```python
+from sklearn.decomposition import PCA
+import pandas as pd
+
+X = df[new_column_names].fillna(0)
+pca = PCA(n_components=10)
+pca.fit(X)
+
+importance = abs(pca.components_[0])  # 첫 번째 주성분의 기여도
+feature_importance = pd.Series(importance, index=new_column_names).sort_values(ascending=False)
+print(feature_importance.head(10))
+```
+[ ] VAE (OmniAD 알고리즘 테스트, nvidia and pytorch container)

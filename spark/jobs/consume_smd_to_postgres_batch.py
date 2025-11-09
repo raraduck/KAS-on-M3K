@@ -52,7 +52,7 @@ json_df.write \
     .option("user", "postgres") \
     .option("password", "postgres") \
     .option("driver", "org.postgresql.Driver") \
-    .mode("overwrite") \
+    .mode("append") \
     .save()
 
 spark.stop()

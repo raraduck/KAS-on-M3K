@@ -1,0 +1,36 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: spark-batch-job
+  namespace: airflow # spark-operator
+spec:
+  type: Python
+  mode: cluster
+  # image: docker.io/library/spark:4.0.0
+  image: dwnusa/spark:v3.5.4-amd64
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/spark-data/consume_smd_to_postgres_batch.py
+  sparkVersion: 3.5.4
+  restartPolicy:
+    type: Never
+  driver:
+    cores: 1
+    memory: 512m
+    serviceAccount: spark-operator-spark
+    volumeMounts:
+      - name: data
+        mountPath: /opt/spark-data
+  executor:
+    cores: 1
+    instances: 2
+    memory: 512m
+#     securityContext:
+#       runAsUser: 0
+#       runAsGroup: 0
+    volumeMounts:
+      - name: data
+        mountPath: /opt/spark-data
+  volumes:
+    - name: data
+      hostPath:
+        path: /opt/spark/jobs
