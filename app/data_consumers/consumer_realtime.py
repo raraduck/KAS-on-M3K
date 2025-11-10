@@ -67,10 +67,16 @@ def save_to_postgres(df, pg_config, table_name):
     # DataFrame → list of tuples
     records = []
     for _, row in df.iterrows():
-        record = [row.get("timestamp"), row.get("label")]
+        record = [
+            row.get("send_timestamp"),
+            row.get("machine"),
+            row.get("timestamp"),
+            row.get("label")
+        ]
         record += [row.get(c) for c in cols]
-        record.append(row.get("send_timestamp"))
         records.append(tuple(record))
+
+    # assert len(record) == len(col_names)
 
     # Batch insert (성능 개선)
     execute_batch(
