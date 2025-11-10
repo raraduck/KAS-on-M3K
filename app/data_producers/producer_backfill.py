@@ -111,7 +111,7 @@ def main():
         acks='1',  # 속도 ↑ (acks=all 보다 빠름)
         # linger_ms=5,  # 배치 대기 시간 (5ms)
         # batch_size=32768,  # 32KB
-        compression_type='gzip',  # CPU 부하 적고 빠름
+        # compression_type='gzip',  # CPU 부하 적고 빠름
         # max_in_flight_requests_per_connection=5
     )
 
@@ -123,11 +123,12 @@ def main():
 
     try:
         for record, machine in iter_all_csv_rows(base_dir):
-            producer.send(
+            future = producer.send(
                 topic_name,
                 key=f"{machine}-train",  # 파티션 균등 분산을 위한 key
                 value=record
-            ).add_callback(on_send_success).add_errback(on_send_error)
+            )
+            future.add_callback(on_send_success).add_errback(on_send_error)
             total_sent += 1
 
         producer.flush()
