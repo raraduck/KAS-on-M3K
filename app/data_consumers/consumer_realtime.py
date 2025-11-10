@@ -7,16 +7,22 @@ import psycopg2
 from psycopg2.extras import execute_batch
 import pandas as pd
 from datetime import datetime
+import argparse
+import os
+from dotenv import load_dotenv
+
+# .env 파일 불러오기 (기본 경로: 현재 실행 디렉토리)
+load_dotenv()
 
 # -------------------- PostgreSQL 연결 정보 -------------------- #
-PG_CONFIG = {
-    "host": "airflow-postgresql.airflow.svc.cluster.local",
-    "port": 5432,
-    "dbname": "postgres",
-    "user": "postgres",
-    "password": "postgres"
-}
-TABLE_NAME = "smd_table_realtime"
+# PG_CONFIG = {
+#     "host": "airflow-postgresql.airflow.svc.cluster.local",
+#     "port": 5432,
+#     "dbname": "postgres",
+#     "user": "postgres",
+#     "password": "postgres"
+# }
+# TABLE_NAME = "smd_table_realtime"
 
 # -------------------- JSON 역직렬화 -------------------- #
 def json_deserializer(data):
@@ -28,18 +34,18 @@ def json_deserializer(data):
         return None
 
 # -------------------- DB 저장 함수 -------------------- #
-def save_to_postgres(df):
+def save_to_postgres(df, pg_config, table_name):
     """pandas DataFrame을 PostgreSQL에 overwrite 저장"""
     if df.empty:
         print("⚠️ 저장할 데이터가 없습니다. 건너뜁니다.")
         return
 
-    conn = psycopg2.connect(**PG_CONFIG)
+    conn = psycopg2.connect(**pg_config)
     cur = conn.cursor()
 
     # 동적 테이블 생성 (없을 시)
     create_sql = f"""
-    CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
+    CREATE TABLE IF NOT EXISTS {table_name} (
         id SERIAL PRIMARY KEY,
         timestamp TEXT,
         label INT,
@@ -68,14 +74,14 @@ def save_to_postgres(df):
     # Batch insert (성능 개선)
     execute_batch(
         cur,
-        f"INSERT INTO {TABLE_NAME} ({', '.join(col_names)}) VALUES ({placeholders})",
+        f"INSERT INTO {table_name} ({', '.join(col_names)}) VALUES ({placeholders})",
         records
     )
 
     conn.commit()
     cur.close()
     conn.close()
-    print(f"💾 {len(df)}건을 PostgreSQL '{TABLE_NAME}' 테이블에 overwrite 저장 완료")
+    print(f"💾 {len(df)}건을 PostgreSQL '{table_name}' 테이블에 overwrite 저장 완료")
 
 # -------------------- 메시지 처리 -------------------- #
 def process_message(message):
@@ -95,19 +101,47 @@ def process_message(message):
 
 # -------------------- 메인 -------------------- #
 def main():
+    parser = argparse.ArgumentParser(description="Kafka → PostgreSQL Consumer")
+
+    # Kafka 설정
+    parser.add_argument("--topic", required=True, help="Kafka topic 이름")
+    parser.add_argument("--bootstrap-servers", required=True, help="Kafka bootstrap 서버 주소")
+    parser.add_argument("--group-id", default="smd-consumer-group", help="Kafka consumer group ID")
+    parser.add_argument("--timeout", type=int, default=120000)
+
+    # PostgreSQL 설정
+    parser.add_argument("--pg-host", default=os.getenv("PG_HOST", "localhost"))
+    parser.add_argument("--pg-port", type=int, default=int(os.getenv("PG_PORT", 5432)))
+    parser.add_argument("--pg-db", default=os.getenv("PG_DB", "postgres"))
+    parser.add_argument("--pg-user", default=os.getenv("PG_USER", "postgres"))
+    parser.add_argument("--pg-pass", default=os.getenv("PG_PASS", "postgres"))
+    parser.add_argument("--pg-table", default=os.getenv("PG_TABLE", "smd_table_realtime"))
+
+    parser.add_argument("--batch-size", type=int, default=100, help="Postgres로 저장할 batch 크기")
+
+    args = parser.parse_args()
+
+    pg_config = {
+        "host": args.pg_host,
+        "port": args.pg_port,
+        "dbname": args.pg_db,
+        "user": args.pg_user,
+        "password": args.pg_pass,
+    }
+
     consumer = KafkaConsumer(
-        "server-machine-usage",
-        bootstrap_servers="kafka.kafka.svc.cluster.local:9092",
+        args.topic,
+        bootstrap_servers=args.bootstrap_servers.split(","), # "kafka.kafka.svc.cluster.local:9092",
         auto_offset_reset="earliest",
         enable_auto_commit=True,
-        group_id="smd-consumer-group",
+        group_id=args.group_id, # "smd-consumer-group",
         value_deserializer=json_deserializer,
-        consumer_timeout_ms=120000
+        consumer_timeout_ms=args.timeout
     )
 
     print("🚀 Kafka → PostgreSQL Consumer 시작.")
     buffer = []
-    batch_size = 100
+    # batch_size = 100
 
     try:
         for message in consumer:
@@ -116,9 +150,9 @@ def main():
                 buffer.append(data)
 
             # 100건 단위로 DB 저장
-            if len(buffer) >= batch_size:
+            if len(buffer) >= args.batch_size:
                 df = pd.DataFrame(buffer)
-                save_to_postgres(df)
+                save_to_postgres(df, pg_config, args.pg_table)
                 buffer.clear()
 
     except KeyboardInterrupt:
@@ -127,7 +161,7 @@ def main():
         # 잔여 버퍼 처리
         if buffer:
             df = pd.DataFrame(buffer)
-            save_to_postgres(df)
+            save_to_postgres(df, pg_config, args.pg_table)
         consumer.close()
         print("✅ Kafka Consumer 종료 완료")
 

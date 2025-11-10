@@ -2,6 +2,15 @@
 
 ---
 
+## **v0.1.0-amd64** - *2025-11-10*
+**Producer**
+- args added `topic`, `bootstrap-server`, `interval`, `machine`
+
+**Consumer**
+- 
+
+---
+
 ## **v0.0.3-amd64** — *2025-11-09*
 **Producer**
 - ⏱ Generates messages every **0.5 sec** for testing.
