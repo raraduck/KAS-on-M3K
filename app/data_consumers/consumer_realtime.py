@@ -142,7 +142,6 @@ def main():
 
     print("🚀 Kafka → PostgreSQL Consumer 시작.")
     buffer = []
-    # batch_size = 100
 
     try:
         for message in consumer:

@@ -9,6 +9,33 @@ import time
 import argparse
 from datetime import datetime
 from kafka import KafkaProducer
+from kafka.admin import KafkaAdminClient, NewTopic
+from kafka.errors import TopicAlreadyExistsError
+
+
+# logger 파일로 저장
+# try catch 자세하게 적용
+
+# -------------------- 토픽 생성 -------------------- #
+def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_factor=1):
+    admin_client = KafkaAdminClient(
+        bootstrap_servers=bootstrap_servers,
+        client_id='topic_creator'
+    )
+
+    topic = NewTopic(
+        name=topic_name,
+        num_partitions=num_partitions,
+        replication_factor=replication_factor
+    )
+
+    try:
+        admin_client.create_topics(new_topics=[topic], validate_only=False)
+        print(f"✅ 토픽 생성 완료: {topic_name}")
+    except TopicAlreadyExistsError:
+        print(f"⚠️ 토픽 '{topic_name}'은 이미 존재합니다.")
+    finally:
+        admin_client.close()
 
 
 # -------------------- JSON 직렬화 -------------------- #
@@ -41,6 +68,7 @@ def iter_smd_csv_rows(machine):
                 numeric_row = {k: try_parse_number(v) for k, v in row.items()}
                 # CSV의 timestamp 대신 전송 시각을 덮어쓰기 (선택)
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
+                numeric_row["mahcine_id"] = machine
                 yield numeric_row
 
 
@@ -73,12 +101,21 @@ def main():
     parser.add_argument('--bootstrap-servers', default='kafka.kafka.svc.cluster.local:9092',
                      type=str, help='Kafka 부트스트랩 서버')
     args = parser.parse_args()
-
+    
     bootstrap_servers = args.bootstrap_servers.split(",") # ['kafka.kafka.svc.cluster.local:9092']
     topic_name = args.topic # "realtime-test-topic"
 
-    producer = KafkaProducer(
+    create_topic(
         bootstrap_servers=bootstrap_servers,
+        topic_name=topic_name,
+        num_partitions=1,
+        replication_factor=3
+    )
+
+    producer = KafkaProducer(
+        client_id="machine-producer",   # ✅ 프로듀서 식별용 이름
+        bootstrap_servers=bootstrap_servers,
+        key_serializer=str.encode,         # ✅ 문자열 → bytes 자동 변환
         value_serializer=json_serializer,
         acks='all'
     )
@@ -89,7 +126,11 @@ def main():
         while True:  # 🔁 무한 루프
             for message in iter_smd_csv_rows(args.machine):
                 # Kafka로 전송
-                future = producer.send(topic_name, value=message)
+                future = producer.send(
+                    topic_name, 
+                    value=message, 
+                    key=f"{args.machine}" # f"{args.machine}".encode("utf-8")
+                )  # 반드시 bytes 형식
                 future.add_callback(on_send_success).add_errback(on_send_error)
 
                 print(f"📤 전송: {message}")

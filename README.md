@@ -134,8 +134,8 @@ kubectl exec -it kafka-controller-0 -n kafka \
   -- kafka-topics.sh --create \
   --topic server-machine-usage \
   --bootstrap-server kafka.kafka.svc.cluster.local:9092 \
-  --replication-factor 1 \
-  --partitions 3
+  --replication-factor 3 \
+  --partitions 1
 
 kafka-topics.sh --list --bootstrap-server kafka.kafka.svc.cluster.local:9092
 ```
@@ -268,6 +268,8 @@ print(conn)
 <img src="./KAS-on-M3K-light.png" width="800">
 
 ## Todolist
+[ ] logger 필요함 (단순 print 만으로는 부족)
+[ ] try catch 자세하게 적용
 
 [ ] PCA 사용하여 정보량이 높은 feature 확인하기 (sklearn container)
 ```python
