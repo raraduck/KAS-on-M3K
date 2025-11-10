@@ -2,6 +2,12 @@
 
 ---
 
+## **v0.1.1-amd64** - *2025-11-10*
+**Producer**
+- added create_topic logic
+- added producer key of machine_id and key-serializer 
+---
+
 ## **v0.1.0-amd64** - *2025-11-10*
 **Producer**
 - args added `topic`, `bootstrap-servers`, `interval`, `machine`
