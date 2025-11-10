@@ -7,18 +7,18 @@
 - added create_topic logic
 - added producer key of machine_id and key-serializer 
 ```bash
-kubectl run smd-producer-1-5  \
+kubectl run smd-producer-v0.1.1-machine-1-1  \
     --restart='Never' \
     --image-pull-policy='Always' \
     --image dwnusa/smd-producer:v0.1.0-amd64 \
     --  --topic realtime-test-topic \
-        --machine machine-1-5
+        --machine machine-1-1
 ```
 
 **Consumer**
 - 
 ```bash
-kubectl run smd-consumer \
+kubectl run smd-consumer-v0.1.1 \
     --restart='Never' \
     --image-pull-policy='Always' \
     --image dwnusa/smd-consumer:v0.1.0-amd64 \
