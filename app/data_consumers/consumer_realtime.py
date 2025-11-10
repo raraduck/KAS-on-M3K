@@ -104,10 +104,11 @@ def main():
     parser = argparse.ArgumentParser(description="Kafka → PostgreSQL Consumer")
 
     # Kafka 설정
-    parser.add_argument("--topic", required=True, help="Kafka topic 이름")
-    parser.add_argument("--bootstrap-servers", required=True, help="Kafka bootstrap 서버 주소")
-    parser.add_argument("--group-id", default="smd-consumer-group", help="Kafka consumer group ID")
-    parser.add_argument("--timeout", type=int, default=120000)
+    parser.add_argument('--topic', default='test-topic', type=str, help='메시지를 보낼 토픽')
+    parser.add_argument('--bootstrap-servers', default='kafka.kafka.svc.cluster.local:9092',
+                     type=str, help='Kafka 부트스트랩 서버')
+    parser.add_argument("--group-id", default="smd-realtime-group", help="Kafka consumer group ID")
+    parser.add_argument("--timeout", type=int, default=90000, help='메시지 타임아웃 (단위 밀리초), default: 90000')
 
     # PostgreSQL 설정
     parser.add_argument("--pg-host", default=os.getenv("PG_HOST", "localhost"))

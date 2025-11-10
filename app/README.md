@@ -4,10 +4,12 @@
 
 ## **v0.1.0-amd64** - *2025-11-10*
 **Producer**
-- args added `topic`, `bootstrap-server`, `interval`, `machine`
+- args added `topic`, `bootstrap-servers`, `interval`, `machine`
 
 **Consumer**
-- 
+- args for kafka: `topic`, `bootstrap-servers`, `group-id`, `timeout`
+- args for postgresql: `pg-host`, `pg-port`, `pg-db`, `pg-user`, `pg-pass`, `pg-table`
+- args for system: `batch-size`
 
 ---
 
