@@ -17,4 +17,5 @@ RUN mkdir -p logs
 
 COPY data_consumers .
 
-CMD ["python3", "-m", "consume_smd"]
+ENTRYPOINT ["python3", "-m", "consumer_realtime"]
+# CMD  ["python3", "-m", "consumer_realtime"]

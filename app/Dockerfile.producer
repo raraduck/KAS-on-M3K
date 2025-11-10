@@ -17,4 +17,5 @@ RUN mkdir -p logs
 
 COPY data_producers .
 
-CMD ["python3", "-m", "produce_smd"]
+ENTRYPOINT ["python3", "-m", "producer_realtime"]
+# CMD ["python3", "-m", "producer_realtime"]
