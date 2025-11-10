@@ -6,9 +6,26 @@
 **Producer**
 - added create_topic logic
 - added producer key of machine_id and key-serializer 
+```bash
+kubectl run smd-producer-1-5  \
+    --restart='Never' \
+    --image-pull-policy='Always' \
+    --image dwnusa/smd-producer:v0.1.0-amd64 \
+    --  --topic realtime-test-topic \
+        --machine machine-1-5
+```
 
 **Consumer**
 - 
+```bash
+kubectl run smd-consumer \
+    --restart='Never' \
+    --image-pull-policy='Always' \
+    --image dwnusa/smd-consumer:v0.1.0-amd64 \
+    --  --topic realtime-test-topic \
+        --pg-pass dwnusa \
+        --batch-size 10
+```
 
 ---
 
@@ -20,6 +37,15 @@
 - args for kafka: `topic`, `bootstrap-servers`, `group-id`, `timeout`
 - args for postgresql: `pg-host`, `pg-port`, `pg-db`, `pg-user`, `pg-pass`, `pg-table`
 - args for system: `batch-size`
+- `.env` required inside data_consumers folder
+```bash
+PG_HOST=airflow-postgresql.airflow.svc.cluster.local
+PG_PORT=5432
+PG_DB=postgres
+PG_USER=postgres
+PG_PASS=postgres
+PG_TABLE=smd_table_realtime
+```
 
 ---
 

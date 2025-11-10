@@ -68,7 +68,7 @@ def iter_smd_csv_rows(machine):
                 numeric_row = {k: try_parse_number(v) for k, v in row.items()}
                 # CSV의 timestamp 대신 전송 시각을 덮어쓰기 (선택)
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
-                numeric_row["mahcine_id"] = machine
+                numeric_row["mahcine"] = machine
                 yield numeric_row
 
 

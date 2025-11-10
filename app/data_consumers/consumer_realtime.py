@@ -47,6 +47,7 @@ def save_to_postgres(df, pg_config, table_name):
     create_sql = f"""
     CREATE TABLE IF NOT EXISTS {table_name} (
         id SERIAL PRIMARY KEY,
+        machine TEXT,
         timestamp TEXT,
         label INT,
         {','.join([f'col_{i} FLOAT' for i in range(38)])},
@@ -60,7 +61,7 @@ def save_to_postgres(df, pg_config, table_name):
 
     # 컬럼명 구성
     cols = [f"col_{i}" for i in range(38)]
-    col_names = ["timestamp", "label"] + cols + ["send_timestamp"]
+    col_names = ["send_timestamp", "machine", "timestamp", "label"] + cols
     placeholders = ", ".join(["%s"] * len(col_names))
 
     # DataFrame → list of tuples
@@ -87,13 +88,14 @@ def save_to_postgres(df, pg_config, table_name):
 def process_message(message):
     """Kafka 메시지를 Python dict로 변환"""
     try:
+        send_ts = message.get("send_timestamp")
+        machine = message.get("machine")
         timestamp = message.get("timestamp")
         label = int(message.get("label", 0))
         cols = {k: v for k, v in message.items() if k.startswith("col_")}
-        send_ts = message.get("send_timestamp")
 
         # send_timestamp는 문자열 형태로 올 경우 그대로 DB가 처리 가능
-        return {"timestamp": timestamp, "label": label, **cols, "send_timestamp": send_ts}
+        return {"send_timestamp": send_ts, "machine": machine, "timestamp": timestamp, "label": label, **cols}
 
     except Exception as e:
         print(f"⚠️ 메시지 파싱 오류: {e}\n원본: {message}")
