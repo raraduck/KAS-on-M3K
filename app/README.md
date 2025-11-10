@@ -6,6 +6,10 @@
 **Producer**
 - added create_topic logic
 - added producer key of machine_id and key-serializer 
+
+**Consumer**
+- 
+
 ---
 
 ## **v0.1.0-amd64** - *2025-11-10*
