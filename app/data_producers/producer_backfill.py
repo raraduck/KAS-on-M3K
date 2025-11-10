@@ -17,7 +17,7 @@ from kafka.errors import TopicAlreadyExistsError
 # try catch 자세하게 적용
 
 # -------------------- 토픽 생성 -------------------- #
-def create_topic(bootstrap_servers, topic_name, num_partitions=14, replication_factor=1):
+def create_topic(bootstrap_servers, topic_name, num_partitions=14, replication_factor=3):
     admin_client = KafkaAdminClient(
         bootstrap_servers=bootstrap_servers,
         client_id='topic_creator'
@@ -100,7 +100,7 @@ def main():
     topic_name = args.topic
 
     # ✅ 토픽 자동 생성
-    create_topic(bootstrap_servers, topic_name, num_partitions=14, replication_factor=1)
+    create_topic(bootstrap_servers, topic_name, num_partitions=14, replication_factor=3)
 
     # ✅ Kafka Producer 설정 (지연 최소화, 병렬 최적화)
     producer = KafkaProducer(
