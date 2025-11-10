@@ -64,11 +64,11 @@ def iter_smd_csv_rows(machine):
         with open(csv_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                # 각 행을 float 또는 int로 변환
+                numeric_row = {k: try_parse_number(v) for k, v in row.items()}
                 # CSV의 timestamp 대신 전송 시각을 덮어쓰기 (선택)
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
                 numeric_row["machine"] = f"{machine}-test"
-                # 각 행을 float 또는 int로 변환
-                numeric_row = {k: try_parse_number(v) for k, v in row.items()}
                 yield numeric_row
 
 

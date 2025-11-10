@@ -63,9 +63,9 @@ def iter_all_csv_rows(base_dir):
         with open(csv_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                numeric_row = {k: try_parse_number(v) for k, v in row.items()}
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
                 numeric_row["machine"] = f"{machine}-train"
-                numeric_row = {k: try_parse_number(v) for k, v in row.items()}
                 yield numeric_row, machine  # machine 이름도 반환
 
 
