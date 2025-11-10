@@ -265,7 +265,7 @@ print(conn)
 ```
 
 ## Diagram
-<img src="./KAS-on-M3K-dark.png" width="500">
+<img src="./KAS-on-M3K-light.png" width="800">
 
 ## Todolist
 
