@@ -17,7 +17,7 @@ from kafka.errors import TopicAlreadyExistsError
 # try catch 자세하게 적용
 
 # -------------------- 토픽 생성 -------------------- #
-def create_topic(bootstrap_servers, topic_name, num_partitions=14, replication_factor=3):
+def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_factor=3):
     admin_client = KafkaAdminClient(
         bootstrap_servers=bootstrap_servers,
         client_id='topic_creator'
@@ -100,19 +100,32 @@ def main():
     topic_name = args.topic
 
     # ✅ 토픽 자동 생성
-    create_topic(bootstrap_servers, topic_name, num_partitions=14, replication_factor=3)
+    create_topic(
+        bootstrap_servers, 
+        topic_name, 
+        num_partitions=3, 
+        replication_factor=3
+    )
 
     # ✅ Kafka Producer 설정 (지연 최소화, 병렬 최적화)
     producer = KafkaProducer(
-        client_id="backfill-producer",
         bootstrap_servers=bootstrap_servers,
-        key_serializer=str.encode,
         value_serializer=json_serializer,
-        acks='1',  # 속도 ↑ (acks=all 보다 빠름)
-        # linger_ms=5,  # 배치 대기 시간 (5ms)
-        # batch_size=32768,  # 32KB
-        # compression_type='gzip',  # CPU 부하 적고 빠름
-        # max_in_flight_requests_per_connection=5
+        key_serializer=str.encode,
+        acks='all',                   # 완전 보장
+        retries=3,
+        linger_ms=0,                  # 즉시 전송
+        batch_size=16384,
+        request_timeout_ms=20000
+        # client_id="backfill-producer",
+        # bootstrap_servers=bootstrap_servers,
+        # key_serializer=str.encode,
+        # value_serializer=json_serializer,
+        # acks='1',  # 속도 ↑ (acks=all 보다 빠름)
+        # # linger_ms=5,  # 배치 대기 시간 (5ms)
+        # # batch_size=32768,  # 32KB
+        # # compression_type='gzip',  # CPU 부하 적고 빠름
+        # # max_in_flight_requests_per_connection=5
     )
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -130,6 +143,8 @@ def main():
             )
             future.add_callback(on_send_success).add_errback(on_send_error)
             total_sent += 1
+            if total_sent % 500 == 0:
+                producer.flush()
 
         producer.flush()
         elapsed = time.time() - start_time
