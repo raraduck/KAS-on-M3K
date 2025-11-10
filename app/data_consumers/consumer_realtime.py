@@ -47,11 +47,11 @@ def save_to_postgres(df, pg_config, table_name):
     create_sql = f"""
     CREATE TABLE IF NOT EXISTS {table_name} (
         id SERIAL PRIMARY KEY,
+        send_timestamp TIMESTAMPTZ,
         machine TEXT,
         timestamp TEXT,
         label INT,
-        {','.join([f'col_{i} FLOAT' for i in range(38)])},
-        send_timestamp TIMESTAMPTZ
+        {','.join([f'col_{i} FLOAT' for i in range(38)])}
     );
     """
     cur.execute(create_sql)

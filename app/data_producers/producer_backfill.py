@@ -17,7 +17,7 @@ from kafka.errors import TopicAlreadyExistsError
 # try catch 자세하게 적용
 
 # -------------------- 토픽 생성 -------------------- #
-def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_factor=1):
+def create_topic(bootstrap_servers, topic_name, num_partitions=14, replication_factor=1):
     admin_client = KafkaAdminClient(
         bootstrap_servers=bootstrap_servers,
         client_id='topic_creator'
@@ -31,7 +31,7 @@ def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_fa
 
     try:
         admin_client.create_topics(new_topics=[topic], validate_only=False)
-        print(f"✅ 토픽 생성 완료: {topic_name}")
+        print(f"✅ 토픽 생성 완료: {topic_name} (partitions={num_partitions}, replicas={replication_factor})")
     except TopicAlreadyExistsError:
         print(f"⚠️ 토픽 '{topic_name}'은 이미 존재합니다.")
     finally:
@@ -45,31 +45,28 @@ def json_serializer(data):
 
 
 # -------------------- CSV 파일 제너레이터 -------------------- #
-def iter_smd_csv_rows(machine):
+def iter_all_csv_rows(base_dir):
     """
-    data/machine-*-*/ 하위의 *_test.csv 파일을 순회하며
-    각 파일의 한 줄(row)을 yield
+    data/machine-*-*/*_train.csv 파일을 전부 순회하며 각 row yield
     """
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    data_pattern = os.path.join(base_dir, "data", machine, "*_test.csv")
-    csv_files = sorted(glob.glob(data_pattern))
+    data_pattern = os.path.join(base_dir, "data", "machine-*", "*_train.csv")
+    csv_files = sorted(glob.glob(data_pattern, recursive=True))
 
     if not csv_files:
         print(f"⚠️ CSV 파일을 찾지 못했습니다: {data_pattern}")
         return
 
     for csv_path in csv_files:
-        print(f"📂 읽는 중: {os.path.basename(csv_path)}")
+        machine = os.path.basename(os.path.dirname(csv_path))
+        print(f"📂 읽는 중: {csv_path}")
 
         with open(csv_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # CSV의 timestamp 대신 전송 시각을 덮어쓰기 (선택)
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
                 numeric_row["machine"] = machine
-                # 각 행을 float 또는 int로 변환
                 numeric_row = {k: try_parse_number(v) for k, v in row.items()}
-                yield numeric_row
+                yield numeric_row, machine  # machine 이름도 반환
 
 
 def try_parse_number(value):
@@ -93,55 +90,52 @@ def on_send_error(excp):
 
 # -------------------- 메인 루프 -------------------- #
 def main():
-    # 인자 파싱
-    parser = argparse.ArgumentParser(description='Kafka 프로듀서 예제 - 메시지 생성')
-    parser.add_argument('--topic', default='test-topic', type=str, help='메시지를 보낼 토픽')
-    parser.add_argument('--interval', default=60, type=int, help='메시지 전송 간격 (단위 초)')
-    parser.add_argument('--machine', default='machine-1-1', type=str, help='측정할 머신 이름 ex. machine-*-*')
+    parser = argparse.ArgumentParser(description='Kafka 프로듀서 - 모든 machine CSV 전송')
+    parser.add_argument('--topic', default='backfill-train-topic', type=str, help='메시지를 보낼 토픽')
     parser.add_argument('--bootstrap-servers', default='kafka.kafka.svc.cluster.local:9092',
-                     type=str, help='Kafka 부트스트랩 서버')
+                        type=str, help='Kafka 부트스트랩 서버')
     args = parser.parse_args()
-    
-    bootstrap_servers = args.bootstrap_servers.split(",") # ['kafka.kafka.svc.cluster.local:9092']
-    topic_name = args.topic # "realtime-test-topic"
 
-    create_topic(
-        bootstrap_servers=bootstrap_servers,
-        topic_name=topic_name,
-        num_partitions=1,
-        replication_factor=3
-    )
+    bootstrap_servers = args.bootstrap_servers.split(",")
+    topic_name = args.topic
 
+    # ✅ 토픽 자동 생성
+    create_topic(bootstrap_servers, topic_name, num_partitions=14, replication_factor=1)
+
+    # ✅ Kafka Producer 설정 (지연 최소화, 병렬 최적화)
     producer = KafkaProducer(
-        client_id="machine-producer",   # ✅ 프로듀서 식별용 이름
+        client_id="backfill-producer",
         bootstrap_servers=bootstrap_servers,
-        key_serializer=str.encode,         # ✅ 문자열 → bytes 자동 변환
+        key_serializer=str.encode,
         value_serializer=json_serializer,
-        acks='all'
+        acks='1',  # 속도 ↑ (acks=all 보다 빠름)
+        linger_ms=5,  # 배치 대기 시간 (5ms)
+        batch_size=32768,  # 32KB
+        compression_type='lz4',  # CPU 부하 적고 빠름
+        max_in_flight_requests_per_connection=5
     )
 
-    print("🚀 Kafka Producer 시작 (무한 반복). Ctrl+C로 종료.")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    total_sent = 0
+    start_time = time.time()
+    
+    print("🚀 Kafka Producer 시작 (모든 machine-* CSV 병렬 전송). Ctrl+C로 종료.")
 
     try:
-        while True:  # 🔁 무한 루프
-            for message in iter_smd_csv_rows(args.machine):
-                # Kafka로 전송
-                future = producer.send(
-                    topic_name, 
-                    value=message, 
-                    key=f"{args.machine}" # f"{args.machine}".encode("utf-8")
-                )  # 반드시 bytes 형식
-                future.add_callback(on_send_success).add_errback(on_send_error)
+        for record, machine in iter_all_csv_rows(base_dir):
+            producer.send(
+                topic_name,
+                key=machine,  # 파티션 균등 분산을 위한 key
+                value=record
+            ).add_callback(on_send_success).add_errback(on_send_error)
+            total_sent += 1
 
-                print(f"📤 전송: {message}")
-                time.sleep(args.interval)  # 전송 간격 조정 가능 (분당 1건)
-            
-            # 한 바퀴 다 돌았으면 대기 후 다시 시작
-            print("🔁 CSV 전체 전송 완료. 60초 후 재시작...\n")
-            time.sleep(args.interval)
+        producer.flush()
+        elapsed = time.time() - start_time
+        print(f"\n✅ 전송 완료: {total_sent} rows / {elapsed:.2f}초 / 평균 {total_sent/elapsed:.1f} msg/sec")
 
     except KeyboardInterrupt:
-        print("🛑 프로듀서 종료")
+        print("🛑 프로듀서 종료 (수동 중단)")
     finally:
         producer.flush()
         producer.close()
