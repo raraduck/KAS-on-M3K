@@ -74,7 +74,7 @@ def main():
                      type=str, help='Kafka 부트스트랩 서버')
     args = parser.parse_args()
 
-    bootstrap_servers = list(args.bootstrap_servers) # ['kafka.kafka.svc.cluster.local:9092']
+    bootstrap_servers = args.bootstrap_servers.split(",") # ['kafka.kafka.svc.cluster.local:9092']
     topic_name = args.topic # "realtime-test-topic"
 
     producer = KafkaProducer(
