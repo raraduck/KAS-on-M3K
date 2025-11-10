@@ -66,7 +66,7 @@ def iter_smd_csv_rows(machine):
             for row in reader:
                 # CSV의 timestamp 대신 전송 시각을 덮어쓰기 (선택)
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
-                numeric_row["machine"] = machine
+                numeric_row["machine"] = f"{machine}-test"
                 # 각 행을 float 또는 int로 변환
                 numeric_row = {k: try_parse_number(v) for k, v in row.items()}
                 yield numeric_row
@@ -129,7 +129,7 @@ def main():
                 future = producer.send(
                     topic_name, 
                     value=message, 
-                    key=f"{args.machine}" # f"{args.machine}".encode("utf-8")
+                    key=f"{args.machine}-test" # f"{args.machine}".encode("utf-8")
                 )  # 반드시 bytes 형식
                 future.add_callback(on_send_success).add_errback(on_send_error)
 

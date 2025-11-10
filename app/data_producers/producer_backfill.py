@@ -64,7 +64,7 @@ def iter_all_csv_rows(base_dir):
             reader = csv.DictReader(f)
             for row in reader:
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
-                numeric_row["machine"] = machine
+                numeric_row["machine"] = f"{machine}-train"
                 numeric_row = {k: try_parse_number(v) for k, v in row.items()}
                 yield numeric_row, machine  # machine 이름도 반환
 
@@ -125,7 +125,7 @@ def main():
         for record, machine in iter_all_csv_rows(base_dir):
             producer.send(
                 topic_name,
-                key=machine,  # 파티션 균등 분산을 위한 key
+                key=f"{machine}-train",  # 파티션 균등 분산을 위한 key
                 value=record
             ).add_callback(on_send_success).add_errback(on_send_error)
             total_sent += 1
