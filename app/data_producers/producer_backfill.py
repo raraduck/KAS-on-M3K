@@ -50,7 +50,7 @@ def iter_all_csv_rows(base_dir):
     data/machine-*-*/*_train.csv 파일을 전부 순회하며 각 row yield
     """
     data_pattern = os.path.join(base_dir, "data", "machine-*", "*_train.csv")
-    csv_files = sorted(glob.glob(data_pattern, recursive=True))
+    csv_files = sorted(glob.glob(data_pattern))
 
     if not csv_files:
         print(f"⚠️ CSV 파일을 찾지 못했습니다: {data_pattern}")
@@ -109,10 +109,10 @@ def main():
         key_serializer=str.encode,
         value_serializer=json_serializer,
         acks='1',  # 속도 ↑ (acks=all 보다 빠름)
-        linger_ms=5,  # 배치 대기 시간 (5ms)
-        batch_size=32768,  # 32KB
+        # linger_ms=5,  # 배치 대기 시간 (5ms)
+        # batch_size=32768,  # 32KB
         compression_type='gzip',  # CPU 부하 적고 빠름
-        max_in_flight_requests_per_connection=5
+        # max_in_flight_requests_per_connection=5
     )
 
     base_dir = os.path.dirname(os.path.abspath(__file__))
