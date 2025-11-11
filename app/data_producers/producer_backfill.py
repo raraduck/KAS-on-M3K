@@ -148,8 +148,8 @@ def main_kafka(args):
     create_topic(
         dest_servers, 
         topic_name, 
-        num_partitions=3, 
-        replication_factor=3
+        num_partitions=14, 
+        replication_factor=1
     )
 
     # ✅ Kafka Producer 설정 (지연 최소화, 병렬 최적화)
@@ -248,7 +248,7 @@ def main_postgres(args):
     try:
         batch = []
         for record, machine in iter_all_csv_rows(base_dir):
-            cols = ["timestamp", "label"] + [f"col_{i}" for i in range(38)] + ["machine", "send_timestamp"]
+            cols = ["send_timestamp", "machine", "timestamp", "label"] + [f"col_{i}" for i in range(38)]
             values = [record.get(c, None) for c in cols]
             batch.append(values)
 
@@ -288,14 +288,6 @@ if __name__ == "__main__":
     parser.add_argument('--dest-servers', default='kafka.kafka.svc.cluster.local:9092',
                         type=str, help='Kafka 또는 Postgres 서버')
     
-    # ✅ PostgreSQL 인자 추가
-    # parser.add_argument('--pg-host', default='localhost', help='PostgreSQL 호스트명')
-    # parser.add_argument('--pg-port', default='5432', help='PostgreSQL 포트')
-    # parser.add_argument('--pg-db', default='postgres', help='PostgreSQL DB명')
-    # parser.add_argument('--pg-user', default='postgres', help='PostgreSQL 사용자명')
-    # parser.add_argument('--pg-pass', default='postgres', help='PostgreSQL 비밀번호')
-    # parser.add_argument('--pg-table', default='smd_table_realtime', help='PostgreSQL 테이블명')
-
     # ✅ PostgreSQL 인자 추가
     parser.add_argument("--pg-host", default=os.getenv("PG_HOST", "localhost"), help='PostgreSQL 호스트명')
     parser.add_argument("--pg-port", type=int, default=int(os.getenv("PG_PORT", 5432)), help='PostgreSQL 포트')
