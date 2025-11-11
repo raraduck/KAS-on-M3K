@@ -106,6 +106,9 @@ def main():
         to_timestamp(col("send_timestamp")) >= to_timestamp(lit(yesterday_iso))
     )
 
+    # 🔧 PostgreSQL 저장 전에 타입 캐스팅 추가
+    filtered_df = filtered_df.withColumn("send_timestamp", to_timestamp(col("send_timestamp")))
+
     logger.info("📊 데이터 예시 (최대 10개)")
     filtered_df.show(10, truncate=False)
 
