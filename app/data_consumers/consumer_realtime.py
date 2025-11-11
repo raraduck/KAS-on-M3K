@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import sys
 from kafka import KafkaConsumer
 import json
 import psycopg2
@@ -10,9 +10,51 @@ from datetime import datetime
 import argparse
 import os
 from dotenv import load_dotenv
+import logging
 
 # .env 파일 불러오기 (기본 경로: 현재 실행 디렉토리)
 load_dotenv()
+
+# -------------------- 로거 전역 선언 -------------------- #
+logger = None
+
+def setup_logger():
+    """로거 설정: 콘솔 + 파일 출력"""
+    # 로그 디렉터리 생성
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+
+    # 파일명: 실행 시각 기반
+    log_filename = os.path.join(log_dir, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+
+    # 로거 생성
+    logger_obj = logging.getLogger()
+    logger_obj.setLevel(logging.INFO)
+
+    # 포맷 지정
+    formatter = logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    # 스트림 핸들러 (콘솔용)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.flush = sys.stdout.flush  # ✅ 즉시 출력용
+
+    # 파일 핸들러 (로그파일용)
+    file_handler = logging.FileHandler(log_filename, mode='w', encoding='utf-8')
+    file_handler.setFormatter(formatter)
+
+    # 기존 핸들러 제거 후 재등록 (중복 방지)
+    if logger_obj.hasHandlers():
+        logger_obj.handlers.clear()
+    logger_obj.addHandler(console_handler)
+    logger_obj.addHandler(file_handler)
+
+    logging.info(f"🧾 Logging started: {log_filename}")
+
+    return logger_obj
 
 # -------------------- PostgreSQL 연결 정보 -------------------- #
 # PG_CONFIG = {
@@ -30,14 +72,14 @@ def json_deserializer(data):
     try:
         return json.loads(data.decode("utf-8"))
     except Exception as e:
-        print(f"⚠️ JSON 디코딩 오류: {e}")
+        logger.warn(f"⚠️ JSON 디코딩 오류: {e}")
         return None
 
 # -------------------- DB 저장 함수 -------------------- #
 def save_to_postgres(df, pg_config, table_name):
     """pandas DataFrame을 PostgreSQL에 overwrite 저장"""
     if df.empty:
-        print("⚠️ 저장할 데이터가 없습니다. 건너뜁니다.")
+        logger.warn("⚠️ 저장할 데이터가 없습니다. 건너뜁니다.")
         return
 
     conn = psycopg2.connect(**pg_config)
@@ -88,7 +130,7 @@ def save_to_postgres(df, pg_config, table_name):
     conn.commit()
     cur.close()
     conn.close()
-    print(f"💾 {len(df)}건을 PostgreSQL '{table_name}' 테이블에 overwrite 저장 완료")
+    logger.info(f"💾 {len(df)}건을 PostgreSQL '{table_name}' 테이블에 overwrite 저장 완료")
 
 # -------------------- 메시지 처리 -------------------- #
 def process_message(message):
@@ -104,11 +146,12 @@ def process_message(message):
         return {"send_timestamp": send_ts, "machine": machine, "timestamp": timestamp, "label": label, **cols}
 
     except Exception as e:
-        print(f"⚠️ 메시지 파싱 오류: {e}\n원본: {message}")
+        logger.warn(f"⚠️ 메시지 파싱 오류: {e}\n원본: {message}")
         return None
 
 # -------------------- 메인 -------------------- #
 def main():
+    global logger
     parser = argparse.ArgumentParser(description="Kafka → PostgreSQL Consumer")
 
     # Kafka 설정
@@ -148,7 +191,7 @@ def main():
         consumer_timeout_ms=args.timeout
     )
 
-    print("🚀 Kafka → PostgreSQL Consumer 시작.")
+    logger.info("🚀 Kafka → PostgreSQL Consumer 시작.")
     buffer = []
 
     try:
@@ -164,15 +207,16 @@ def main():
                 buffer.clear()
 
     except KeyboardInterrupt:
-        print("🛑 컨슈머 수동 종료 요청")
+        logger.error("🛑 컨슈머 수동 종료 요청")
     finally:
         # 잔여 버퍼 처리
         if buffer:
             df = pd.DataFrame(buffer)
             save_to_postgres(df, pg_config, args.pg_table)
         consumer.close()
-        print("✅ Kafka Consumer 종료 완료")
+        logger.info("✅ Kafka Consumer 종료 완료")
 
 
 if __name__ == "__main__":
+    logger = setup_logger()
     main()
