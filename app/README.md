@@ -3,19 +3,36 @@
 
 ## **v0.1.2-amd64** - *2025-11-11*
 
-**Producer**
+**Producer_realtime**
+- added logger
+
+**Producer_backfill**
 - arg choices of postgres and kafka with server: `dest`, `dest-server` 
 - new args for postgres: `pg-host`, `pg-port`, `pg-db`, `pg-user`, `pg-pass`, `pg-table`
-- logger added
+- added logger
 
 ```bash
+# To run Kafka 
 kubectl run smd-producer-backfill-v0-1-2 \
     --restart='Never' \
     --image-pull-policy='Always' \
     --image dwnusa/smd-producer-backfill:v0.1.2-amd64 \
     --  --topic backfill-kafka \
         --dest kafka
+
+# To run PostgreSQL
+kubectl run smd-producer-backfill-v0-1-2 \
+    --restart='Never' \
+    --image-pull-policy='Always' \
+    --image dwnusa/smd-producer-backfill:v0.1.2-amd64 \
+    --  --dest postgresql \
+        --pg-pass postgres
+# other args for pg are loaded from .env
 ```
+
+**Consumer_realtime**
+- added logger
+
 
 ---
 
@@ -60,7 +77,6 @@ PG_HOST=airflow-postgresql.airflow.svc.cluster.local
 PG_PORT=5432
 PG_DB=postgres
 PG_USER=postgres
-PG_PASS=postgres
 PG_TABLE=smd_table_realtime
 ```
 

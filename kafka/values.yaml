@@ -10,13 +10,13 @@ kraft:
 
 controller:
   replicaCount: 3
-  resources:
-    requests:
-      memory: 512Mi
-      cpu: 200m
-    limits:
-      memory: 1Gi
-      cpu: 500m
+  # resources:
+  #   requests:
+  #     memory: 512Mi
+  #     cpu: 200m
+  #   limits:
+  #     memory: 1Gi
+  #     cpu: 500m
 
 listeners:
   client:

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import os
+import sys
 import glob
 import csv
 import json
@@ -11,10 +12,48 @@ from datetime import datetime
 from kafka import KafkaProducer
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
+import logging
 
+# -------------------- 로거 전역 선언 -------------------- #
+logger = None
 
-# logger 파일로 저장
-# try catch 자세하게 적용
+def setup_logger():
+    """로거 설정: 콘솔 + 파일 출력"""
+    # 로그 디렉터리 생성
+    log_dir = "logs"
+    os.makedirs(log_dir, exist_ok=True)
+
+    # 파일명: 실행 시각 기반
+    log_filename = os.path.join(log_dir, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+
+    # 로거 생성
+    logger_obj = logging.getLogger()
+    logger_obj.setLevel(logging.INFO)
+
+    # 포맷 지정
+    formatter = logging.Formatter(
+        fmt="%(asctime)s [%(levelname)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    # 스트림 핸들러 (콘솔용)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.flush = sys.stdout.flush  # ✅ 즉시 출력용
+
+    # 파일 핸들러 (로그파일용)
+    file_handler = logging.FileHandler(log_filename, mode='w', encoding='utf-8')
+    file_handler.setFormatter(formatter)
+
+    # 기존 핸들러 제거 후 재등록 (중복 방지)
+    if logger_obj.hasHandlers():
+        logger_obj.handlers.clear()
+    logger_obj.addHandler(console_handler)
+    logger_obj.addHandler(file_handler)
+
+    logging.info(f"🧾 Logging started: {log_filename}")
+
+    return logger_obj
 
 # -------------------- 토픽 생성 -------------------- #
 def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_factor=1):
@@ -31,9 +70,9 @@ def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_fa
 
     try:
         admin_client.create_topics(new_topics=[topic], validate_only=False)
-        print(f"✅ 토픽 생성 완료: {topic_name}")
+        logger.info(f"✅ 토픽 생성 완료: {topic_name}")
     except TopicAlreadyExistsError:
-        print(f"⚠️ 토픽 '{topic_name}'은 이미 존재합니다.")
+        logger.warn(f"⚠️ 토픽 '{topic_name}'은 이미 존재합니다.")
     finally:
         admin_client.close()
 
@@ -55,11 +94,11 @@ def iter_smd_csv_rows(machine):
     csv_files = sorted(glob.glob(data_pattern))
 
     if not csv_files:
-        print(f"⚠️ CSV 파일을 찾지 못했습니다: {data_pattern}")
+        logger.warn(f"⚠️ CSV 파일을 찾지 못했습니다: {data_pattern}")
         return
 
     for csv_path in csv_files:
-        print(f"📂 읽는 중: {os.path.basename(csv_path)}")
+        logger.info(f"📂 읽는 중: {os.path.basename(csv_path)}")
 
         with open(csv_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
@@ -85,14 +124,15 @@ def try_parse_number(value):
 
 # -------------------- Kafka 전송 콜백 -------------------- #
 def on_send_success(record_metadata):
-    print(f"✅ 성공: topic={record_metadata.topic}, partition={record_metadata.partition}, offset={record_metadata.offset}")
+    logger.info(f"✅ 성공: topic={record_metadata.topic}, partition={record_metadata.partition}, offset={record_metadata.offset}")
 
 def on_send_error(excp):
-    print(f"❌ 실패: {excp}")
+    logger.error(f"❌ 실패: {excp}")
 
 
 # -------------------- 메인 루프 -------------------- #
 def main():
+    global logger
     # 인자 파싱
     parser = argparse.ArgumentParser(description='Kafka 프로듀서 예제 - 메시지 생성')
     parser.add_argument('--topic', default='test-topic', type=str, help='메시지를 보낼 토픽')
@@ -120,7 +160,7 @@ def main():
         acks='all'
     )
 
-    print("🚀 Kafka Producer 시작 (무한 반복). Ctrl+C로 종료.")
+    logger.info("🚀 Kafka Producer 시작 (무한 반복). Ctrl+C로 종료.")
 
     try:
         while True:  # 🔁 무한 루프
@@ -133,15 +173,15 @@ def main():
                 )  # 반드시 bytes 형식
                 future.add_callback(on_send_success).add_errback(on_send_error)
 
-                print(f"📤 전송: {message}")
+                logger.info(f"📤 전송: {message}")
                 time.sleep(args.interval)  # 전송 간격 조정 가능 (분당 1건)
             
             # 한 바퀴 다 돌았으면 대기 후 다시 시작
-            print("🔁 CSV 전체 전송 완료. 60초 후 재시작...\n")
+            logger.info("🔁 CSV 전체 전송 완료. 60초 후 재시작...\n")
             time.sleep(args.interval)
 
     except KeyboardInterrupt:
-        print("🛑 프로듀서 종료")
+        logger.error("🛑 프로듀서 종료")
     finally:
         producer.flush()
         producer.close()
@@ -149,5 +189,6 @@ def main():
 
 # -------------------- 실행 -------------------- #
 if __name__ == "__main__":
+    logger = setup_logger()
 
     main()

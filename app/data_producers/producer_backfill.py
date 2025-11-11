@@ -159,7 +159,7 @@ def main_kafka(args):
         key_serializer=str.encode,
         acks='all',                   # 완전 보장
         retries=3,
-        linger_ms=0,                  # 즉시 전송
+        linger_ms=1000,                  # 즉시 전송
         batch_size=16384,
         request_timeout_ms=20000
         # client_id="backfill-producer",
