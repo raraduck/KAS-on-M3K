@@ -1,8 +1,8 @@
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
-  name: spark-batch-job
-  namespace: airflow # spark-operator
+  name: spark-batch-backfill
+  namespace: default # airflow # spark-operator
 spec:
   type: Python
   mode: cluster
