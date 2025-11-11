@@ -1,0 +1,59 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: spark-batch-dataset          # 💡 job 이름 변경
+  namespace: default
+spec:
+  type: Python
+  mode: cluster
+  image: dwnusa/spark:v3.5.4-amd64
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/spark-data/spark_batch_dataset.py
+  sparkVersion: 3.5.4
+
+  restartPolicy:
+    type: Never
+
+  arguments:             # ✅ Python script 인자 전달 (PostgreSQL → S3)
+    # PostgreSQL 연결정보
+    - "--pg-host"
+    - "10.246.246.33"
+    - "--pg-port"
+    - "12345"
+    - "--pg-db"
+    - "testdb"
+    - "--pg-user"
+    - "dwnusa"
+    - "--pg-table"
+    - "smd_raw_data_lake"
+
+    # S3 저장 관련
+    - "--s3-bucket"
+    - "s3a://mybucket/smd-dataset"
+    - "--format"
+    - "parquet"
+
+    # 최근 N일만 백업
+    - "--days"
+    - "3"
+
+  driver:
+    cores: 1
+    memory: 512m
+    serviceAccount: spark-operator-spark
+    volumeMounts:
+      - name: data
+        mountPath: /opt/spark-data
+
+  executor:
+    cores: 1
+    instances: 4
+    memory: 512m
+    volumeMounts:
+      - name: data
+        mountPath: /opt/spark-data
+
+  volumes:
+    - name: data
+      hostPath:
+        path: /opt/spark/jobs
