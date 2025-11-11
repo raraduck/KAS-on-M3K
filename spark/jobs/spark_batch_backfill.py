@@ -11,7 +11,8 @@ load_dotenv("/opt/spark-data/.env")
 
 # -------------------- 로거 설정 -------------------- #
 def setup_logger():
-    log_dir = "/opt/spark-data/logs"   # ✅ 절대경로 지정
+    # log_dir = "/opt/spark-data/logs"   # ✅ 절대경로 지정
+    log_dir = "/tmp/spark-logs"   # ✅ 항상 쓰기 가능한 디렉토리
     os.makedirs(log_dir, exist_ok=True)
     log_path = os.path.join(log_dir, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
 
