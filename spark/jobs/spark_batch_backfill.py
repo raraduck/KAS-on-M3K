@@ -114,6 +114,11 @@ def main():
 
     jdbc_url = f"jdbc:postgresql://{args.pg_host}:{args.pg_port}/{args.pg_db}"
 
+    # ✅ 저장 전 행 수 카운트 및 시간 측정
+    total_inserted = filtered_df.count()
+    logger.info(f"🧮 저장 예정 행 수: {total_inserted}")
+
+    start_time = datetime.now()
     logger.info("💾 PostgreSQL 저장 중...")
     filtered_df.write \
         .format("jdbc") \
@@ -125,7 +130,9 @@ def main():
         .mode("append") \
         .save()
 
-    logger.info(f"✅ PostgreSQL 저장 완료: {args.pg_table}")
+    elapsed = (datetime.now() - start_time).total_seconds()
+    logger.info(f"\n✅ PostgreSQL 저장 완료: {total_inserted} rows / {elapsed:.2f}초 / 평균 {total_inserted/elapsed:.1f} row/sec")
+    logger.info(f"✅ PostgreSQL 저장 테이블: {args.pg_table}")
     spark.stop()
     logger.info("🏁 Spark 세션 종료 완료")
 
