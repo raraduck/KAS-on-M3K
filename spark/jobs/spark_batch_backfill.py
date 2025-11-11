@@ -131,7 +131,7 @@ def main():
         .save()
 
     elapsed = (datetime.now() - start_time).total_seconds()
-    logger.info(f"\n✅ PostgreSQL 저장 완료: {total_inserted} rows / {elapsed:.2f}초 / 평균 {total_inserted/elapsed:.1f} row/sec")
+    logger.info(f"✅ PostgreSQL 저장 완료: {total_inserted} rows / {elapsed:.2f}초 / 평균 {total_inserted/elapsed:.1f} row/sec")
     logger.info(f"✅ PostgreSQL 저장 테이블명: {args.pg_table}")
     spark.stop()
     logger.info("🏁 Spark 세션 종료 완료")
