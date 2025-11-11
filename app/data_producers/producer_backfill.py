@@ -68,7 +68,7 @@ def setup_logger():
 # -------------------- 토픽 생성 -------------------- #
 def create_topic(dest_servers, topic_name, num_partitions=3, replication_factor=3):
     admin_client = KafkaAdminClient(
-        dest_servers=dest_servers,
+        bootstrap_servers=dest_servers,
         client_id='topic_creator'
     )
 

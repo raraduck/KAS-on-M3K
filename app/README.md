@@ -8,6 +8,15 @@
 - new args for postgres: `pg-host`, `pg-port`, `pg-db`, `pg-user`, `pg-pass`, `pg-table`
 - logger added
 
+```bash
+kubectl run smd-producer-backfill-v0-1-2 \
+    --restart='Never' \
+    --image-pull-policy='Always' \
+    --image dwnusa/smd-producer-backfill:v0.1.2-amd64 \
+    --  --topic backfill-kafka \
+        --dest kafka
+```
+
 ---
 
 ## **v0.1.1-amd64** - *2025-11-10*
