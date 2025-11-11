@@ -1,4 +1,12 @@
 # 🧾 Version History
+---
+
+## **v0.1.2-amd64** - *2025-11-11*
+
+**Producer**
+- arg choices of postgres and kafka with server: `dest`, `dest-server` 
+- new args for postgres: `pg-host`, `pg-port`, `pg-db`, `pg-user`, `pg-pass`, `pg-table`
+- logger added
 
 ---
 

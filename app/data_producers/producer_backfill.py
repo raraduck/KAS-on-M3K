@@ -17,6 +17,9 @@ import psycopg2
 from psycopg2.extras import execute_batch
 from dotenv import load_dotenv   # ✅ .env 파일 지원
 
+# .env 파일 불러오기 (기본 경로: 현재 실행 디렉토리)
+load_dotenv()
+
 # -------------------- 로거 전역 선언 -------------------- #
 logger = None
 
@@ -201,7 +204,7 @@ def main_kafka(args):
 # -------------------- 메인 postgresql 루프 -------------------- #
 def main_postgres(args):
     global logger
-    
+
     """CSV 데이터를 PostgreSQL에 직접 저장"""
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -286,12 +289,20 @@ if __name__ == "__main__":
                         type=str, help='Kafka 또는 Postgres 서버')
     
     # ✅ PostgreSQL 인자 추가
-    parser.add_argument('--pg-host', default='localhost', help='PostgreSQL 호스트명')
-    parser.add_argument('--pg-port', default='5432', help='PostgreSQL 포트')
-    parser.add_argument('--pg-db', default='postgres', help='PostgreSQL DB명')
-    parser.add_argument('--pg-user', default='postgres', help='PostgreSQL 사용자명')
-    parser.add_argument('--pg-pass', default='postgres', help='PostgreSQL 비밀번호')
-    parser.add_argument('--pg-table', default='smd_table_realtime', help='PostgreSQL 테이블명')
+    # parser.add_argument('--pg-host', default='localhost', help='PostgreSQL 호스트명')
+    # parser.add_argument('--pg-port', default='5432', help='PostgreSQL 포트')
+    # parser.add_argument('--pg-db', default='postgres', help='PostgreSQL DB명')
+    # parser.add_argument('--pg-user', default='postgres', help='PostgreSQL 사용자명')
+    # parser.add_argument('--pg-pass', default='postgres', help='PostgreSQL 비밀번호')
+    # parser.add_argument('--pg-table', default='smd_table_realtime', help='PostgreSQL 테이블명')
+
+    # ✅ PostgreSQL 인자 추가
+    parser.add_argument("--pg-host", default=os.getenv("PG_HOST", "localhost"), help='PostgreSQL 호스트명')
+    parser.add_argument("--pg-port", type=int, default=int(os.getenv("PG_PORT", 5432)), help='PostgreSQL 포트')
+    parser.add_argument("--pg-db", default=os.getenv("PG_DB", "postgres"), help='PostgreSQL DB명')
+    parser.add_argument("--pg-user", default=os.getenv("PG_USER", "postgres"), help='PostgreSQL 사용자명')
+    parser.add_argument("--pg-pass", default=os.getenv("PG_PASS", "postgres"), help='PostgreSQL 비밀번호')
+    parser.add_argument("--pg-table", default=os.getenv("PG_TABLE", "smd_table_realtime"), help='PostgreSQL 테이블명')
 
     args = parser.parse_args()
 
