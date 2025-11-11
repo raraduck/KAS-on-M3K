@@ -211,12 +211,12 @@ def main_postgres(args):
     # ✅ 환경변수 로드 (.env)
     load_dotenv()
 
-    PG_HOST = os.getenv("PG_HOST", args.pg_host)
-    PG_PORT = os.getenv("PG_PORT", args.pg_port)
-    PG_DB = os.getenv("PG_DB", args.pg_db)
-    PG_USER = os.getenv("PG_USER", args.pg_user)
-    PG_PASS = os.getenv("PG_PASS", args.pg_pass)
-    PG_TABLE = os.getenv("PG_TABLE", args.pg_table)
+    PG_HOST = args.pg_host
+    PG_PORT = args.pg_port
+    PG_DB = args.pg_db
+    PG_USER = args.pg_user
+    PG_PASS = args.pg_pass
+    PG_TABLE = args.pg_table
 
     conn = psycopg2.connect(
         host=PG_HOST,
