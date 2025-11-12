@@ -72,7 +72,7 @@ def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_fa
         admin_client.create_topics(new_topics=[topic], validate_only=False)
         logger.info(f"✅ 토픽 생성 완료: {topic_name}")
     except TopicAlreadyExistsError:
-        logger.warn(f"⚠️ 토픽 '{topic_name}'은 이미 존재합니다.")
+        logger.warnming(f"⚠️ 토픽 '{topic_name}'은 이미 존재합니다.")
     finally:
         admin_client.close()
 
@@ -94,7 +94,7 @@ def iter_smd_csv_rows(machine):
     csv_files = sorted(glob.glob(data_pattern))
 
     if not csv_files:
-        logger.warn(f"⚠️ CSV 파일을 찾지 못했습니다: {data_pattern}")
+        logger.warnming(f"⚠️ CSV 파일을 찾지 못했습니다: {data_pattern}")
         return
 
     for csv_path in csv_files:
@@ -107,7 +107,8 @@ def iter_smd_csv_rows(machine):
                 numeric_row = {k: try_parse_number(v) for k, v in row.items()}
                 # CSV의 timestamp 대신 전송 시각을 덮어쓰기 (선택)
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
-                numeric_row["machine"] = f"{machine}-test"
+                numeric_row["machine"] = machine
+                numeric_row["usage"] = f"test"
                 yield numeric_row
 
 
@@ -177,7 +178,7 @@ def main():
                 time.sleep(args.interval)  # 전송 간격 조정 가능 (분당 1건)
             
             # 한 바퀴 다 돌았으면 대기 후 다시 시작
-            logger.info("🔁 CSV 전체 전송 완료. 60초 후 재시작...\n")
+            logger.info("🔁 CSV 전체 전송 완료. Inverval (ex. 60초) 후 재시작...\n")
             time.sleep(args.interval)
 
     except KeyboardInterrupt:

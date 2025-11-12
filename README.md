@@ -268,10 +268,9 @@ print(conn)
 <img src="./KAS-on-M3K-v2.png" width="800">
 
 ## Todolist
-[ ] logger 필요함 (단순 print 만으로는 부족)
-[ ] try catch 자세하게 적용
-
-[ ] PCA 사용하여 정보량이 높은 feature 확인하기 (sklearn container)
+- [x] logger 필요함 (단순 print 만으로는 부족)
+- [ ] try catch 자세하게 적용
+- [ ] PCA 사용하여 정보량이 높은 feature 확인하기 (sklearn container)
 ```python
 from sklearn.decomposition import PCA
 import pandas as pd
@@ -284,4 +283,4 @@ importance = abs(pca.components_[0])  # 첫 번째 주성분의 기여도
 feature_importance = pd.Series(importance, index=new_column_names).sort_values(ascending=False)
 print(feature_importance.head(10))
 ```
-[ ] VAE (OmniAD 알고리즘 테스트, nvidia and pytorch container)
+- [ ] VAE (OmniAD 알고리즘 테스트, nvidia and pytorch container)

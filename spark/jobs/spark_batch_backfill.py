@@ -78,6 +78,7 @@ def main():
         StructField("send_timestamp", StringType(), True),
         StructField("machine", StringType(), True),
         StructField("timestamp", DoubleType(), True),
+        StructField("usage", StringType(), True),
         StructField("label", DoubleType(), True),
         *[StructField(f"col_{i}", DoubleType(), True) for i in range(38)],
     ])

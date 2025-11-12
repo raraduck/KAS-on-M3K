@@ -91,16 +91,21 @@ def main():
     count = filtered_df.count()
     logger.info(f"📅 Filtered {count} rows after {cutoff}")
 
-    # 3️⃣ S3 저장
-    s3_path = f"{args.s3-bucket}/export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    logger.info(f"💾 Saving to S3 path: {s3_path} (format={args.format})")
+    # 2️⃣ 필터링: 학습용 데이터만
+    filtered_df = filtered_df.filter(col("usage") == "train")
+    count = filtered_df.count()
+    logger.info(f"📅 Filtered {count} rows only for train")
 
-    if args.format == "csv":
-        filtered_df.write.mode("overwrite").option("header", True).csv(s3_path)
-    else:
-        filtered_df.write.mode("overwrite").parquet(s3_path)
+    # # 3️⃣ S3 저장
+    # s3_path = f"{args.s3_bucket}/export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    # logger.info(f"💾 Saving to S3 path: {s3_path} (format={args.format})")
 
-    logger.info(f"✅ Export complete: {count} rows saved to {s3_path}")
+    # if args.format == "csv":
+    #     filtered_df.write.mode("overwrite").option("header", True).csv(s3_path)
+    # else:
+    #     filtered_df.write.mode("overwrite").parquet(s3_path)
+
+    # logger.info(f"✅ Export complete: {count} rows saved to {s3_path}")
     spark.stop()
     logger.info("🏁 Spark session closed.")
 

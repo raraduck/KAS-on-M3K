@@ -82,7 +82,7 @@ def create_topic(dest_servers, topic_name, num_partitions=3, replication_factor=
         admin_client.create_topics(new_topics=[topic], validate_only=False)
         logger.info(f"✅ 토픽 생성 완료: {topic_name} (partitions={num_partitions}, replicas={replication_factor})")
     except TopicAlreadyExistsError:
-        logger.warn(f"⚠️ 토픽 '{topic_name}'은 이미 존재합니다.")
+        logger.warnming(f"⚠️ 토픽 '{topic_name}'은 이미 존재합니다.")
     finally:
         admin_client.close()
 
@@ -102,7 +102,7 @@ def iter_all_csv_rows(base_dir):
     csv_files = sorted(glob.glob(data_pattern))
 
     if not csv_files:
-        logger.warn(f"⚠️ CSV 파일을 찾지 못했습니다: {data_pattern}")
+        logger.warnming(f"⚠️ CSV 파일을 찾지 못했습니다: {data_pattern}")
         return
 
     for csv_path in csv_files:
@@ -114,7 +114,8 @@ def iter_all_csv_rows(base_dir):
             for row in reader:
                 numeric_row = {k: try_parse_number(v) for k, v in row.items()}
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
-                numeric_row["machine"] = f"{machine}-train"
+                numeric_row["machine"] = machine
+                numeric_row["usage"] = f"train"
                 yield numeric_row, machine  # machine 이름도 반환
 
 
@@ -158,10 +159,10 @@ def main_kafka(args):
         value_serializer=json_serializer,
         key_serializer=str.encode,
         acks='all',                   # 완전 보장
-        retries=3,
-        linger_ms=1000,                  # 즉시 전송
+        # retries=3,
+        # linger_ms=1000,                  # 즉시 전송
         batch_size=16384,
-        request_timeout_ms=20000
+        # request_timeout_ms=20000
         # client_id="backfill-producer",
         # bootstrap_servers=dest_servers,
         # key_serializer=str.encode,
@@ -234,6 +235,7 @@ def main_postgres(args):
         send_timestamp TIMESTAMPTZ,
         machine TEXT,
         timestamp TEXT,
+        usage TEXT,
         label INT,
         {','.join([f'col_{i} FLOAT' for i in range(38)])}
     );
@@ -248,7 +250,7 @@ def main_postgres(args):
     try:
         batch = []
         for record, machine in iter_all_csv_rows(base_dir):
-            cols = ["send_timestamp", "machine", "timestamp", "label"] + [f"col_{i}" for i in range(38)]
+            cols = ["send_timestamp", "machine", "timestamp", "usage", "label"] + [f"col_{i}" for i in range(38)]
             values = [record.get(c, None) for c in cols]
             batch.append(values)
 

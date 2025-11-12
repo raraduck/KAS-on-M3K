@@ -72,14 +72,14 @@ def json_deserializer(data):
     try:
         return json.loads(data.decode("utf-8"))
     except Exception as e:
-        logger.warn(f"⚠️ JSON 디코딩 오류: {e}")
+        logger.warnming(f"⚠️ JSON 디코딩 오류: {e}")
         return None
 
 # -------------------- DB 저장 함수 -------------------- #
 def save_to_postgres(df, pg_config, table_name):
     """pandas DataFrame을 PostgreSQL에 overwrite 저장"""
     if df.empty:
-        logger.warn("⚠️ 저장할 데이터가 없습니다. 건너뜁니다.")
+        logger.warnming("⚠️ 저장할 데이터가 없습니다. 건너뜁니다.")
         return
 
     conn = psycopg2.connect(**pg_config)
@@ -92,6 +92,7 @@ def save_to_postgres(df, pg_config, table_name):
         send_timestamp TIMESTAMPTZ,
         machine TEXT,
         timestamp TEXT,
+        usage TEXT,
         label INT,
         {','.join([f'col_{i} FLOAT' for i in range(38)])}
     );
@@ -103,7 +104,7 @@ def save_to_postgres(df, pg_config, table_name):
 
     # 컬럼명 구성
     cols = [f"col_{i}" for i in range(38)]
-    col_names = ["send_timestamp", "machine", "timestamp", "label"] + cols
+    col_names = ["send_timestamp", "machine", "timestamp", "usage", "label"] + cols
     placeholders = ", ".join(["%s"] * len(col_names))
 
     # DataFrame → list of tuples
@@ -113,6 +114,7 @@ def save_to_postgres(df, pg_config, table_name):
             row.get("send_timestamp"),
             row.get("machine"),
             row.get("timestamp"),
+            row.get("usage"),
             row.get("label")
         ]
         record += [row.get(c) for c in cols]
@@ -139,14 +141,15 @@ def process_message(message):
         send_ts = message.get("send_timestamp")
         machine = message.get("machine")
         timestamp = message.get("timestamp")
+        usage = message.get("usage")
         label = int(message.get("label", 0))
         cols = {k: v for k, v in message.items() if k.startswith("col_")}
 
         # send_timestamp는 문자열 형태로 올 경우 그대로 DB가 처리 가능
-        return {"send_timestamp": send_ts, "machine": machine, "timestamp": timestamp, "label": label, **cols}
+        return {"send_timestamp": send_ts, "machine": machine, "timestamp": timestamp, "usage": usage, "label": label, **cols}
 
     except Exception as e:
-        logger.warn(f"⚠️ 메시지 파싱 오류: {e}\n원본: {message}")
+        logger.warnming(f"⚠️ 메시지 파싱 오류: {e}\n원본: {message}")
         return None
 
 # -------------------- 메인 -------------------- #
