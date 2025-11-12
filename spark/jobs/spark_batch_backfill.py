@@ -139,7 +139,7 @@ def main():
             .option("user", args.pg_user) \
             .option("password", args.pg_pass) \
             .option("driver", "org.postgresql.Driver") \
-            .mode("error") \
+            .mode("append") \
             .save()
 
         # -------------------------------
