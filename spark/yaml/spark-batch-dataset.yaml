@@ -4,9 +4,9 @@ metadata:
   name: spark-batch-dataset          # 💡 job 이름 변경
   namespace: default
 spec:
-  sparkConf:
-    "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
-    "spark.hadoop.fs.s3a.endpoint": "s3.ap-northeast-2.amazonaws.com"
+  # sparkConf:
+  #   "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
+  #   "spark.hadoop.fs.s3a.endpoint": "s3.ap-northeast-2.amazonaws.com"
 
   type: Python
   mode: cluster
@@ -51,7 +51,7 @@ spec:
 
   executor:
     cores: 1
-    instances: 4            # executor 수 증가
+    instances: 2            # executor 수 증가
     memory: 2g
     volumeMounts:
       - name: data
