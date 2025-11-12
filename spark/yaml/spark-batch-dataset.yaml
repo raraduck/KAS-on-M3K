@@ -39,7 +39,7 @@ spec:
 
   driver:
     cores: 1
-    memory: 512m
+    memory: 2g
     serviceAccount: spark-operator-spark
     volumeMounts:
       - name: data
@@ -47,8 +47,8 @@ spec:
 
   executor:
     cores: 1
-    instances: 4
-    memory: 512m
+    instances: 4            # executor 수 증가
+    memory: 2g
     volumeMounts:
       - name: data
         mountPath: /opt/spark-data

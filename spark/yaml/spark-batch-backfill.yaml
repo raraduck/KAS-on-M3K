@@ -39,7 +39,7 @@ spec:
         mountPath: /opt/spark-data
   executor:
     cores: 1
-    instances: 4
+    instances: 2
     memory: 512m
 #     securityContext:
 #       runAsUser: 0
