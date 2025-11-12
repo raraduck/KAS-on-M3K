@@ -187,6 +187,8 @@ kubectl patch svc airflow-api-server -n airflow \
 ## 5. Install Spark (version 3.xx)
 ### 5.0. Customize Spark Image
 ```bash
+wget https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar -P jars/
+# wget https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar -P jars/
 docker build -t dwnusa/spark:v3.5.4-amd64 .
 ```
 ### 5.1. Helm Install Spark
