@@ -47,8 +47,7 @@ def parse_args():
     parser.add_argument("--pg-pass", default=os.getenv("PG_PASS", "postgres"))
     parser.add_argument("--pg-table", default=os.getenv("PG_TABLE", "smd_data_lake"))
 
-    # S3
-    parser.add_argument("--s3-bucket", default=os.getenv("S3_BUCKET", "s3a://mybucket/smd-dataset"))
+    parser.add_argument("--s3-bucket", default=os.getenv("S3_BUCKET", "s3a://kas-on-m3k/smd-dataset"))
     parser.add_argument("--format", default=os.getenv("S3_FORMAT", "parquet"))
 
     # Backfill 일수
@@ -63,7 +62,16 @@ def main():
     args = parse_args()
 
     # SparkSession 초기화
-    spark = SparkSession.builder.appName("SparkBatchDataset").getOrCreate()
+    # spark = SparkSession.builder.appName("SparkBatchDataset").getOrCreate()
+    spark = (
+        SparkSession.builder
+        .appName("SparkBatchDataset")
+        .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
+        .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
+        .config("spark.hadoop.fs.s3a.endpoint", "s3.ap-northeast-2.amazonaws.com") 
+        .config("spark.sql.session.timeZone", "Asia/Seoul")
+        .getOrCreate()
+    )
 
     jdbc_url = f"jdbc:postgresql://{args.pg_host}:{args.pg_port}/{args.pg_db}"
     logger.info(f"🔗 Connecting to PostgreSQL {jdbc_url} ...")
@@ -97,15 +105,16 @@ def main():
     logger.info(f"📅 Filtered {count} rows only for train")
 
     # # 3️⃣ S3 저장
-    # s3_path = f"{args.s3_bucket}/export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-    # logger.info(f"💾 Saving to S3 path: {s3_path} (format={args.format})")
+    s3_path = f"{args.s3_bucket}/export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    logger.info(f"💾 Saving to S3 path: {s3_path} (format={args.format})")
 
-    # if args.format == "csv":
-    #     filtered_df.write.mode("overwrite").option("header", True).csv(s3_path)
-    # else:
-    #     filtered_df.write.mode("overwrite").parquet(s3_path)
+    if args.format == "csv":
+        filtered_df.write.mode("overwrite").option("header", True).csv(s3_path)
+    else:
+        filtered_df.write.mode("overwrite").parquet(s3_path)
 
-    # logger.info(f"✅ Export complete: {count} rows saved to {s3_path}")
+    logger.info(f"✅ Export complete: {count} rows saved to {s3_path}")
+
     spark.stop()
     logger.info("🏁 Spark session closed.")
 
