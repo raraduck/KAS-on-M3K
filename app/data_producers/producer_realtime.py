@@ -67,7 +67,7 @@ def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_fa
         num_partitions=num_partitions,
         replication_factor=replication_factor
     )
-    
+
     try:
         admin_client.create_topics(new_topics=[topic], validate_only=False)
         logger.info(f"✅ 토픽 생성 완료: {topic_name}")
@@ -141,6 +141,8 @@ def main():
     parser.add_argument('--machine', default='machine-1-1', type=str, help='측정할 머신 이름 ex. machine-*-*')
     parser.add_argument('--bootstrap-servers', default='kafka.kafka.svc.cluster.local:9092',
                      type=str, help='Kafka 부트스트랩 서버')
+    parser.add_argument('--partitions', default=1, type=int, help='토픽 파티션 수 (기본: 1)')
+    parser.add_argument('--replications', default=3, type=int, help='토픽 복제본 수 (기본: 3)')
     args = parser.parse_args()
     
     bootstrap_servers = args.bootstrap_servers.split(",") # ['kafka.kafka.svc.cluster.local:9092']
@@ -149,8 +151,8 @@ def main():
     create_topic(
         bootstrap_servers=bootstrap_servers,
         topic_name=topic_name,
-        num_partitions=1,
-        replication_factor=3
+        num_partitions=args.partitions,
+        replication_factor=args.replications
     )
 
     producer = KafkaProducer(

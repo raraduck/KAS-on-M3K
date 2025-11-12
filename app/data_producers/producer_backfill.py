@@ -149,8 +149,8 @@ def main_kafka(args):
     create_topic(
         dest_servers, 
         topic_name, 
-        num_partitions=14, 
-        replication_factor=1
+        num_partitions=args.partitions, 
+        replication_factor=args.replications
     )
 
     # ✅ Kafka Producer 설정 (지연 최소화, 병렬 최적화)
@@ -289,6 +289,8 @@ if __name__ == "__main__":
     parser.add_argument('--topic', default='backfill-train-topic', type=str, help='메시지를 보낼 토픽')
     parser.add_argument('--dest-servers', default='kafka.kafka.svc.cluster.local:9092',
                         type=str, help='Kafka 또는 Postgres 서버')
+    parser.add_argument('--partitions', default=14, type=int, help='토픽 파티션 수 (기본: 14)')
+    parser.add_argument('--replications', default=1, type=int, help='토픽 복제본 수 (기본: 1)')
     
     # ✅ PostgreSQL 인자 추가
     parser.add_argument("--pg-host", default=os.getenv("PG_HOST", "localhost"), help='PostgreSQL 호스트명')
