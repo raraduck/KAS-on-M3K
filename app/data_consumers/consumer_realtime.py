@@ -72,14 +72,14 @@ def json_deserializer(data):
     try:
         return json.loads(data.decode("utf-8"))
     except Exception as e:
-        logger.warnming(f"⚠️ JSON 디코딩 오류: {e}")
+        logger.warning(f"⚠️ JSON 디코딩 오류: {e}")
         return None
 
 # -------------------- DB 저장 함수 -------------------- #
 def save_to_postgres(df, pg_config, table_name):
     """pandas DataFrame을 PostgreSQL에 overwrite 저장"""
     if df.empty:
-        logger.warnming("⚠️ 저장할 데이터가 없습니다. 건너뜁니다.")
+        logger.warning("⚠️ 저장할 데이터가 없습니다. 건너뜁니다.")
         return
 
     conn = psycopg2.connect(**pg_config)
@@ -149,7 +149,7 @@ def process_message(message):
         return {"send_timestamp": send_ts, "machine": machine, "timestamp": timestamp, "usage": usage, "label": label, **cols}
 
     except Exception as e:
-        logger.warnming(f"⚠️ 메시지 파싱 오류: {e}\n원본: {message}")
+        logger.warning(f"⚠️ 메시지 파싱 오류: {e}\n원본: {message}")
         return None
 
 # -------------------- 메인 -------------------- #
