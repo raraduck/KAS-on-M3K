@@ -5,10 +5,10 @@ import sys
 import argparse
 import logging
 from datetime import datetime, timedelta
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 
-# # Load environment file
-# load_dotenv("/opt/spark-data/.env")
+# Load environment file
+load_dotenv("/opt/spark-data/.env")
 
 
 # -------------------- 로거 설정 -------------------- #
