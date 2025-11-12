@@ -48,7 +48,7 @@ def parse_args():
     parser.add_argument("--pg-table", default=os.getenv("PG_TABLE", "smd_data_lake"))
 
     parser.add_argument("--s3-bucket", default=os.getenv("S3_BUCKET", "s3a://kas-on-m3k/smd-dataset"))
-    parser.add_argument("--format", default=os.getenv("S3_FORMAT", "parquet"))
+    parser.add_argument("--format", default=os.getenv("S3_FORMAT", "csv"))
 
     # Backfill 일수
     parser.add_argument("--days", type=int, default=int(os.getenv("BACKFILL_DAYS", "1")))
@@ -68,7 +68,8 @@ def main():
         .appName("SparkBatchDataset")
         .config("spark.jars.packages",
                 "org.apache.hadoop:hadoop-aws:3.3.4,"
-                "com.amazonaws:aws-java-sdk-bundle:1.12.262")
+                "com.amazonaws:aws-java-sdk-bundle:1.12.262"
+        )
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
         .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
         .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
