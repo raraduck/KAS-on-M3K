@@ -20,14 +20,6 @@ spec:
 
   arguments:             # ✅ Python script 인자 전달 (PostgreSQL → S3)
     # PostgreSQL 연결정보
-    - "--pg-host"
-    - "10.246.246.33"
-    - "--pg-port"
-    - "12345"
-    - "--pg-db"
-    - "testdb"
-    - "--pg-user"
-    - "dwnusa"
     - "--pg-table"
     - "backfill_train_251112"
 
