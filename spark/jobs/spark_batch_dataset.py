@@ -62,16 +62,16 @@ def main():
     args = parse_args()
 
     # SparkSession 초기화
-    # spark = SparkSession.builder.appName("SparkBatchDataset").getOrCreate()
-    spark = (
-        SparkSession.builder
-        .appName("SparkBatchDataset")
-        .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
-        .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
-        .config("spark.hadoop.fs.s3a.endpoint", "s3.ap-northeast-2.amazonaws.com") 
-        .config("spark.sql.session.timeZone", "Asia/Seoul")
-        .getOrCreate()
-    )
+    spark = SparkSession.builder.appName("SparkBatchDataset").getOrCreate()
+    # spark = (
+    #     SparkSession.builder
+    #     .appName("SparkBatchDataset")
+    #     .config("spark.hadoop.fs.s3a.access.key", os.getenv("AWS_ACCESS_KEY_ID"))
+    #     .config("spark.hadoop.fs.s3a.secret.key", os.getenv("AWS_SECRET_ACCESS_KEY"))
+    #     .config("spark.hadoop.fs.s3a.endpoint", "s3.ap-northeast-2.amazonaws.com") 
+    #     .config("spark.sql.session.timeZone", "Asia/Seoul")
+    #     .getOrCreate()
+    # )
 
     jdbc_url = f"jdbc:postgresql://{args.pg_host}:{args.pg_port}/{args.pg_db}"
     logger.info(f"🔗 Connecting to PostgreSQL {jdbc_url} ...")
