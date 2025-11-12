@@ -83,7 +83,12 @@ def main():
         *[StructField(f"col_{i}", DoubleType(), True) for i in range(38)],
     ])
 
-    spark = SparkSession.builder.appName("SparkBatchBackfill").getOrCreate()
+    spark = (
+        SparkSession.builder
+        .appName("SparkBatchBackfill")
+        .config("spark.sql.session.timeZone", "Asia/Seoul")  # ✅ 한국 시간 명시
+        .getOrCreate()
+    )
 
     logger.info("🚀 Kafka 데이터 읽기 시작")
     df = spark.read \
@@ -120,22 +125,54 @@ def main():
     logger.info(f"🧮 저장 예정 행 수: {total_inserted}")
 
     start_time = datetime.now()
-    logger.info("💾 PostgreSQL 저장 중...")
-    filtered_df.write \
-        .format("jdbc") \
-        .option("url", jdbc_url) \
-        .option("dbtable", args.pg_table) \
-        .option("user", args.pg_user) \
-        .option("password", args.pg_pass) \
-        .option("driver", "org.postgresql.Driver") \
-        .mode("append") \
-        .save()
 
-    elapsed = (datetime.now() - start_time).total_seconds()
-    logger.info(f"✅ PostgreSQL 저장 완료: {total_inserted} rows / {elapsed:.2f}초 / 평균 {total_inserted/elapsed:.1f} row/sec")
-    logger.info(f"✅ PostgreSQL 저장 테이블명: {args.pg_table}")
-    spark.stop()
-    logger.info("🏁 Spark 세션 종료 완료")
+    try:
+        logger.info("🚀 PostgreSQL 저장 시작")
+
+        # -------------------------------
+        # Spark → PostgreSQL 저장 실행
+        # -------------------------------
+        filtered_df.write \
+            .format("jdbc") \
+            .option("url", jdbc_url) \
+            .option("dbtable", args.pg_table) \
+            .option("user", args.pg_user) \
+            .option("password", args.pg_pass) \
+            .option("driver", "org.postgresql.Driver") \
+            .mode("error") \
+            .save()
+
+        # -------------------------------
+        # 저장 완료 후 로깅
+        # -------------------------------
+        elapsed = (datetime.now() - start_time).total_seconds()
+        logger.info(f"✅ PostgreSQL 저장 완료: {total_inserted} rows / {elapsed:.2f}초 / 평균 {total_inserted/elapsed:.1f} row/sec")
+        logger.info(f"✅ PostgreSQL 저장 테이블명: {args.pg_table}")
+
+    except Exception as e:
+        msg = str(e)
+        # -------------------------------
+        # 주요 예외 분기
+        # -------------------------------
+        if "does not exist" in msg or "UndefinedTable" in msg:
+            logger.error(f"❌ PostgreSQL 테이블 '{args.pg_table}'이 존재하지 않습니다. 먼저 생성하세요.")
+        elif "Connection refused" in msg or "Communications link failure" in msg:
+            logger.error("❌ PostgreSQL 연결 실패 — DB 접속 정보를 확인하세요.")
+        elif "password authentication failed" in msg:
+            logger.error("❌ PostgreSQL 비밀번호 인증 실패")
+        else:
+            logger.exception(f"💥 예상치 못한 예외 발생: {msg}")
+            raise
+
+    finally:
+        # -------------------------------
+        # Spark 세션 종료 (항상 실행)
+        # -------------------------------
+        try:
+            spark.stop()
+            logger.info("🏁 Spark 세션 종료 완료")
+        except Exception as e:
+            logger.warning(f"⚠️ Spark 세션 종료 중 예외 발생: {e}")
 
 
 if __name__ == "__main__":

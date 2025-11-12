@@ -189,7 +189,7 @@ def main_kafka(args):
             )
             future.add_callback(on_send_success).add_errback(on_send_error)
             total_sent += 1
-            if total_sent % 500 == 0:
+            if total_sent % args.batch_size == 0:
                 producer.flush()
 
         producer.flush()
@@ -291,6 +291,7 @@ if __name__ == "__main__":
                         type=str, help='Kafka 또는 Postgres 서버')
     parser.add_argument('--partitions', default=14, type=int, help='토픽 파티션 수 (기본: 14)')
     parser.add_argument('--replications', default=1, type=int, help='토픽 복제본 수 (기본: 1)')
+    parser.add_argument('--batch-size', default=1000, type=int, help='메시지 전송 배치 사이즈')
     
     # ✅ PostgreSQL 인자 추가
     parser.add_argument("--pg-host", default=os.getenv("PG_HOST", "localhost"), help='PostgreSQL 호스트명')
