@@ -25,7 +25,7 @@ spec:
     - "--pg-user"
     - "dwnusa"
     - "--pg-table"
-    - "smd_raw_data_lake"
+    - "backfill_train_251112"
 
     # S3 저장 관련
     - "--s3-bucket"
