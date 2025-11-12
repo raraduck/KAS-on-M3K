@@ -5,7 +5,6 @@ metadata:
   namespace: default
 spec:
   sparkConf:
-    "spark.jars.packages": "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262"
     "spark.hadoop.fs.s3a.impl": "org.apache.hadoop.fs.s3a.S3AFileSystem"
     "spark.hadoop.fs.s3a.endpoint": "s3.ap-northeast-2.amazonaws.com"
 
