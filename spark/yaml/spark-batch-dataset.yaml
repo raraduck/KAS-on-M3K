@@ -31,7 +31,7 @@ spec:
 
     # 최근 N일만 백업
     - "--days"
-    - "3"
+    - "1"
 
   driver:
     cores: 1
