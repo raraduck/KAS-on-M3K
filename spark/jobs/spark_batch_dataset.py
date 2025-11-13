@@ -76,14 +76,32 @@ def main():
     jdbc_url = f"jdbc:postgresql://{args.pg_host}:{args.pg_port}/{args.pg_db}"
     logger.info(f"🔗 Connecting to PostgreSQL {jdbc_url} ...")
 
+    cutoff = (datetime.now() - timedelta(days=args.days)).strftime("%Y-%m-%d %H:%M:%S")
+    query = f"""
+        (SELECT *
+        FROM {args.pg_table}
+        WHERE send_timestamp >= '{cutoff}'
+        AND usage = 'train'
+        ) AS sub
+    """
+
     # 1️⃣ PostgreSQL → DataFrame
-    df = spark.read.format("jdbc") \
-        .option("url", jdbc_url) \
-        .option("dbtable", args.pg_table) \
-        .option("user", args.pg_user) \
-        .option("password", args.pg_pass) \
-        .option("driver", "org.postgresql.Driver") \
-        .load()
+    # df = spark.read.format("jdbc") \
+    #     .option("url", jdbc_url) \
+    #     .option("dbtable", args.pg_table) \
+    #     .option("user", args.pg_user) \
+    #     .option("password", args.pg_pass) \
+    #     .option("driver", "org.postgresql.Driver") \
+    #     .load()
+    df = (
+        spark.read.format("jdbc")
+            .option("url", jdbc_url)
+            .option("query", query)      # ← dbtable 대신 query 사용
+            .option("user", args.pg_user)
+            .option("password", args.pg_pass)
+            .option("driver", "org.postgresql.Driver")
+            .load()
+    )
 
     if df.rdd.isEmpty():
         logger.warning("⚠️ No data found in PostgreSQL table. Exiting.")
