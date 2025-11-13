@@ -90,7 +90,7 @@ helm install kafka bitnami/kafka \
 ```bash
 # kubectl create namespace kafka
 kubectl apply -f kafka-ui.yaml
-minikube -p <MINIKUBE_PROFILE_NAME> service kafka-ui -n kafka
+minikube -p <MINIKUBE_PROFILE_NAME> service kafka-ui -n kafka --url
 # 192.168.xx.xx:30095
 ```
 

@@ -7,11 +7,23 @@ data:
   prometheus.yml: |
     global:
       scrape_interval: 15s
+      evaluation_interval: 15s
 
     scrape_configs:
+      # Prometheus 자체 모니터링
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      # Kafka Exporter 모니터링
       - job_name: 'kafka-exporter'
         static_configs:
           - targets: ['kafka-exporter.kafka.svc.cluster.local:9308']
+
+      # Node Exporter (옵션)
+      - job_name: 'node-exporter'
+        static_configs:
+          - targets: ['node-exporter.kafka.svc.cluster.local:9100']
 ---
 apiVersion: apps/v1
 kind: Deployment
