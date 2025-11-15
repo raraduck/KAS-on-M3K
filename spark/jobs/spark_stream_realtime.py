@@ -55,7 +55,7 @@ def upsert_to_postgres(batch_df, batch_id, args, logger):
     logger.info(f"[Batch {batch_id}] 저장 시작 (rows={batch_df.count()})")
 
     # pandas 없이 Row 객체 변환
-    rows = batch_df.collect()
+    # rows = batch_df.collect()
 
     pg_config = {
         "host": args.pg_host,
@@ -95,9 +95,13 @@ def upsert_to_postgres(batch_df, batch_id, args, logger):
     DO NOTHING;
     """
 
-    # 배치 insert용 데이터 구성
-    records = []
-    for r in rows:
+    # ------------------------------------------------------
+    # collect() 대신 → 스트리밍 방식 toLocalIterator()
+    # ------------------------------------------------------
+    batch_records = []
+    BATCH_SIZE = 500
+
+    for r in batch_df.toLocalIterator():  # ✔ 메모리 절약
         record = [
             r.send_timestamp,
             r.machine,
@@ -107,11 +111,18 @@ def upsert_to_postgres(batch_df, batch_id, args, logger):
         ]
         for i in range(38):
             record.append(getattr(r, f"col_{i}"))
-        records.append(tuple(record))
+        batch_records.append(tuple(record))
 
-    # execute_batch
-    execute_batch(cur, upsert_sql, records, page_size=500)
-    conn.commit()
+        if len(batch_records) >= BATCH_SIZE:
+            execute_batch(cur, upsert_sql, batch_records, page_size=BATCH_SIZE)
+            conn.commit()
+            batch_records.clear()
+
+    # 남은 레코드 처리
+    if batch_records:
+        execute_batch(cur, upsert_sql, batch_records, page_size=BATCH_SIZE)
+        conn.commit()
+
     cur.close()
     conn.close()
 
@@ -179,11 +190,6 @@ def main():
     json_df = df.selectExpr("CAST(value AS STRING) as json_str") \
         .select(from_json(col("json_str"), schema).alias("data")) \
         .select("data.*")
-
-    # Backfill 기준일 필터
-    # filtered_df = json_df.filter(
-    #     to_timestamp(col("send_timestamp")) >= to_timestamp(lit(day_offset_iso))
-    # )
 
     # PK 기준 중복 제거
     dedup_df = json_df.dropDuplicates(["machine", "timestamp", "usage"])
