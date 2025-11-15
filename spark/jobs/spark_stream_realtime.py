@@ -191,7 +191,7 @@ def main():
         .select(from_json(col("json_str"), schema).alias("data")) \
         .select("data.*")
 
-    # PK 기준 중복 제거
+    # PK 기준 중복 제거: Spark 쪽에서 굳이 dropDuplicates로 상태를 유지할 필요가 없음
     # dedup_df = json_df.dropDuplicates(["machine", "timestamp", "usage"])
 
     # 타입 캐스팅
