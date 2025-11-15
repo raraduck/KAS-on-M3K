@@ -48,11 +48,11 @@ def setup_logger():
 # -----------------------------------------------------
 def upsert_to_postgres(batch_df, batch_id, args, logger):
 
-    if batch_df.count() == 0:
-        logger.info(f"[Batch {batch_id}] 데이터 없음 → Skip")
-        return
+    # if batch_df.count() == 0:
+    #     logger.info(f"[Batch {batch_id}] 데이터 없음 → Skip")
+    #     return
 
-    logger.info(f"[Batch {batch_id}] 저장 시작 (rows={batch_df.count()})")
+    # logger.info(f"[Batch {batch_id}] 저장 시작 (rows={batch_df.count()})")
 
     # pandas 없이 Row 객체 변환
     # rows = batch_df.collect()
@@ -183,9 +183,9 @@ def main():
         .format("kafka") \
         .option("kafka.bootstrap.servers", args.kafka_bootstrap) \
         .option("subscribe", args.topic) \
-        .option("startingOffsets", "earliest") \
-        .option("kafka.group.id", "spark-realtime-group") \
+        .option("startingOffsets", "latest") \
         .load()
+        # .option("kafka.group.id", "spark-realtime-group") \ # 그룹생성이 애초에 되지 않음
 
     json_df = df.selectExpr("CAST(value AS STRING) as json_str") \
         .select(from_json(col("json_str"), schema).alias("data")) \
