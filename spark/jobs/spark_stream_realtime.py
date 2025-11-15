@@ -162,7 +162,7 @@ def main():
 
     spark = (
         SparkSession.builder
-        .appName("SparkForeachBatchBackfill")
+        .appName("SparkForeachBatchRealtime")
         .config("spark.sql.session.timeZone", "Asia/Seoul")
         .getOrCreate()
     )
