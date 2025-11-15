@@ -7,7 +7,7 @@ spec:
   type: Python
   mode: cluster
   # image: docker.io/library/spark:4.0.0
-  image: dwnusa/spark:v3.5.4-amd64
+  image: dwnusa/spark:v3.5.4.1-amd64
   imagePullPolicy: IfNotPresent
   mainApplicationFile: local:///opt/spark-data/spark_batch_backfill.py
   sparkVersion: 3.5.4

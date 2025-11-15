@@ -48,11 +48,11 @@ def setup_logger():
 # -----------------------------------------------------
 def upsert_to_postgres(batch_df, batch_id, args, logger):
 
-    # if batch_df.count() == 0:
-    #     logger.info(f"[Batch {batch_id}] 데이터 없음 → Skip")
-    #     return
+    if batch_df.count() == 0:
+        logger.info(f"[Batch {batch_id}] 데이터 없음 → Skip")
+        return
 
-    # logger.info(f"[Batch {batch_id}] 저장 시작 (rows={batch_df.count()})")
+    logger.info(f"[Batch {batch_id}] 저장 시작 (rows={batch_df.count()})")
 
     # pandas 없이 Row 객체 변환
     # rows = batch_df.collect()
