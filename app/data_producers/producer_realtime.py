@@ -104,7 +104,7 @@ def iter_smd_csv_rows(machine):
             reader = csv.DictReader(f)
             for row in reader:
                 # 각 행을 float 또는 int로 변환
-                numeric_row = {k: try_parse_number(v) for k, v in row.items()}
+                numeric_row = {k: try_parse_number(k, v) for k, v in row.items()}
                 # CSV의 timestamp 대신 전송 시각을 덮어쓰기 (선택)
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
                 numeric_row["machine"] = machine
@@ -112,8 +112,26 @@ def iter_smd_csv_rows(machine):
                 yield numeric_row
 
 
-def try_parse_number(value):
-    """문자열을 float/int로 변환, 실패 시 그대로 반환"""
+def to_str(x):
+    if isinstance(x, bytes):
+        return x.decode("utf-8", errors="ignore")
+    return str(x)
+
+def try_parse_number(key, value):
+    """
+    특정 컬럼(col_0~col_37, label)만 숫자로 파싱하고
+    timestamp 같은 컬럼은 그대로 string 유지.
+    """
+    if key in ('timestamp', 'usage', 'machine'):
+        return to_str(value) # 반드시 문자열 유지
+    
+    if key in ('label'):
+        return int(value) # 반드시 문자열 유지
+
+    if key in {f"col_{i}" for i in range(38)}:
+        return float(value)  # 숫자 변환 필요 없는 컬럼
+
+    # 이제 숫자로 변환 대상인 경우만 아래 진행
     try:
         if "." in value or "e" in value or "E" in value:
             return float(value)

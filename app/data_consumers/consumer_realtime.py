@@ -85,14 +85,14 @@ def save_to_postgres(df, pg_config, table_name):
     conn = psycopg2.connect(**pg_config)
     cur = conn.cursor()
 
-    # 동적 테이블 생성 (없을 시)
+    # 동적 테이블 생성 (없을 시) # id SERIAL PRIMARY KEY,
     create_sql = f"""
     CREATE TABLE IF NOT EXISTS {table_name} (
-        id SERIAL PRIMARY KEY,
         send_timestamp TIMESTAMPTZ,
         machine TEXT,
         timestamp TEXT,
         usage TEXT,
+        PRIMARY KEY (machine, timestamp, usage),
         label INT,
         {','.join([f'col_{i} FLOAT' for i in range(38)])}
     );
@@ -120,19 +120,28 @@ def save_to_postgres(df, pg_config, table_name):
         record += [row.get(c) for c in cols]
         records.append(tuple(record))
 
-    # assert len(record) == len(col_names)
+
+    insert_sql = f"""
+    INSERT INTO {table_name} ({', '.join(col_names)}) 
+    VALUES ({placeholders})
+    """
+
+    # UPSERT 처리
+    upsert_sql = f"""
+    INSERT INTO {table_name} ({', '.join(col_names)})
+    VALUES ({placeholders})
+    ON CONFLICT (machine, timestamp, usage)
+    DO NOTHING;
+    """
 
     # Batch insert (성능 개선)
-    execute_batch(
-        cur,
-        f"INSERT INTO {table_name} ({', '.join(col_names)}) VALUES ({placeholders})",
-        records
-    )
+    # execute_batch(cur, insert_sql, records)
+    execute_batch(cur, upsert_sql, records)
 
     conn.commit()
     cur.close()
     conn.close()
-    logger.info(f"💾 {len(df)}건을 PostgreSQL '{table_name}' 테이블에 overwrite 저장 완료")
+    logger.info(f"💾 {len(df)}건을 PostgreSQL '{table_name}' 테이블에 overwrite 저장 완료 (중복은 자동 무시)")
 
 # -------------------- 메시지 처리 -------------------- #
 def process_message(message):

@@ -6,7 +6,7 @@ USER root
 WORKDIR /opt/spark-data
 
 # ✅ 패키지 설치 (root 권한으로 설치 가능)
-RUN pip install --no-cache-dir python-dotenv pyspark pandas numpy matplotlib scikit-learn kafka-python
+RUN pip install --no-cache-dir psycopg2-binary python-dotenv pyspark pandas numpy matplotlib scikit-learn kafka-python
 
 # ✅ Spark jars 복사
 COPY jars /opt/spark/jars/

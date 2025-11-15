@@ -67,9 +67,9 @@ def main():
     logger = setup_logger()
     args = parse_args()
 
-    yesterday_iso = (datetime.now() - timedelta(days=args.days)).isoformat(timespec="microseconds")
+    day_offset_iso = (datetime.now() - timedelta(days=args.days)).isoformat(timespec="microseconds")
 
-    logger.info(f"📅 Backfill 기준일: {yesterday_iso}")
+    logger.info(f"📅 Backfill 기준일: {day_offset_iso}")
     logger.info(f"🎯 Kafka topic: {args.topic}")
     logger.info(f"💾 PostgreSQL: {args.pg_host}:{args.pg_port}/{args.pg_db} → {args.pg_table}")
 
@@ -77,7 +77,7 @@ def main():
     schema = StructType([
         StructField("send_timestamp", StringType(), True),
         StructField("machine", StringType(), True),
-        StructField("timestamp", DoubleType(), True),
+        StructField("timestamp", StringType(), True),
         StructField("usage", StringType(), True),
         StructField("label", DoubleType(), True),
         *[StructField(f"col_{i}", DoubleType(), True) for i in range(38)],
@@ -109,19 +109,22 @@ def main():
         .select("data.*")
 
     filtered_df = json_df.filter(
-        to_timestamp(col("send_timestamp")) >= to_timestamp(lit(yesterday_iso))
+        to_timestamp(col("send_timestamp")) >= to_timestamp(lit(day_offset_iso))
     )
 
+    # Spark에서 중복 제거 후 저장 (upsert 를 spark 에서 미리 하는 효과임. 하지만, 토픽에서 읽어온 데이터 내에서만 효과 적용됨)
+    dedup_df = filtered_df.dropDuplicates(["machine", "timestamp", "usage"])
+
     # 🔧 PostgreSQL 저장 전에 타입 캐스팅 추가
-    filtered_df = filtered_df.withColumn("send_timestamp", to_timestamp(col("send_timestamp")))
+    dedup_df = dedup_df.withColumn("send_timestamp", to_timestamp(col("send_timestamp")))
 
     logger.info("📊 데이터 예시 (최대 10개)")
-    filtered_df.show(10, truncate=False)
+    dedup_df.show(10, truncate=False)
 
     jdbc_url = f"jdbc:postgresql://{args.pg_host}:{args.pg_port}/{args.pg_db}"
 
     # ✅ 저장 전 행 수 카운트 및 시간 측정
-    total_inserted = filtered_df.count()
+    total_inserted = dedup_df.count()
     logger.info(f"🧮 저장 예정 행 수: {total_inserted}")
 
     start_time = datetime.now()
@@ -132,7 +135,7 @@ def main():
         # -------------------------------
         # Spark → PostgreSQL 저장 실행
         # -------------------------------
-        filtered_df.write \
+        dedup_df.write \
             .format("jdbc") \
             .option("url", jdbc_url) \
             .option("dbtable", args.pg_table) \
