@@ -1,7 +1,7 @@
 apiVersion: sparkoperator.k8s.io/v1beta2
 kind: SparkApplication
 metadata:
-  name: spark-batch-backfill
+  name: spark-stream-realtime
   namespace: default # airflow # spark-operator
 spec:
   type: Python
