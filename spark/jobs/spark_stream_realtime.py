@@ -173,6 +173,7 @@ def main():
         .option("kafka.bootstrap.servers", args.kafka_bootstrap) \
         .option("subscribe", args.topic) \
         .option("startingOffsets", "earliest") \
+        .option("kafka.group.id", "spark-realtime-group") \
         .load()
 
     json_df = df.selectExpr("CAST(value AS STRING) as json_str") \
