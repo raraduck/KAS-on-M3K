@@ -66,9 +66,9 @@ def setup_logger():
 # try catch 자세하게 적용
 
 # -------------------- 토픽 생성 -------------------- #
-def create_topic(dest_servers, topic_name, num_partitions=3, replication_factor=3):
+def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_factor=3):
     admin_client = KafkaAdminClient(
-        bootstrap_servers=dest_servers,
+        bootstrap_servers=bootstrap_servers,
         client_id='topic_creator'
     )
 
@@ -142,12 +142,12 @@ def on_send_error(excp):
 def main_kafka(args):
     global logger
 
-    dest_servers = args.dest_servers.split(",")
+    bootstrap_servers = args.bootstrap_servers.split(",")
     topic_name = args.topic
 
     # ✅ 토픽 자동 생성
     create_topic(
-        dest_servers, 
+        bootstrap_servers, 
         topic_name, 
         num_partitions=args.partitions, 
         replication_factor=args.replications
@@ -155,7 +155,7 @@ def main_kafka(args):
 
     # ✅ Kafka Producer 설정 (지연 최소화, 병렬 최적화)
     producer = KafkaProducer(
-        bootstrap_servers=dest_servers,
+        bootstrap_servers=bootstrap_servers,
         value_serializer=json_serializer,
         key_serializer=str.encode,
         acks='all',                   # 완전 보장
@@ -164,7 +164,7 @@ def main_kafka(args):
         batch_size=16384,
         # request_timeout_ms=20000
         # client_id="backfill-producer",
-        # bootstrap_servers=dest_servers,
+        # bootstrap_servers=bootstrap_servers,
         # key_serializer=str.encode,
         # value_serializer=json_serializer,
         # acks='1',  # 속도 ↑ (acks=all 보다 빠름)
@@ -287,7 +287,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Kafka 또는 PostgreSQL - 모든 machine CSV 전송')
     parser.add_argument('--dest', choices=['postgresql', 'kafka'], default='kafka', type=str, help='메시지를 보낼 곳 (postgresql, kafka)')
     parser.add_argument('--topic', default='backfill-train-topic', type=str, help='메시지를 보낼 토픽')
-    parser.add_argument('--dest-servers', default='kafka.kafka.svc.cluster.local:9092',
+    parser.add_argument('--bootstrap-servers', default='kafka.kafka.svc.cluster.local:9092',
                         type=str, help='Kafka 또는 Postgres 서버')
     parser.add_argument('--partitions', default=14, type=int, help='토픽 파티션 수 (기본: 14)')
     parser.add_argument('--replications', default=1, type=int, help='토픽 복제본 수 (기본: 1)')

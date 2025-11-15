@@ -96,20 +96,51 @@ minikube -p <MINIKUBE_PROFILE_NAME> service kafka-ui -n kafka --url
 
 ## 3. Producer and Consumer for Kafka Test
 ### 3.0. Customize App Images
-**Producer**
+**Producer-realtime**
 ```bash
-# docker build -f Dockerfile.producer -t dwnusa/smd-producer:v0.0.1-amd64 .
+# docker build -f Dockerfile.producer -t dwnusa/smd-producer-realtime:v0.1.2-amd64 .
 docker build \
   --no-cache \
   -f Dockerfile.producer \
-  -t dwnusa/smd-producer:v0.0.2-amd64 .
+  -t dwnusa/smd-producer-realtime:v0.1.2-amd64 .
 
-docker push dwnusa/smd-producer:v0.0.2-amd64
+docker push dwnusa/smd-producer-realtime:v0.1.2-amd64
 
-kubectl run smd-producer \
+# version updated v0.1.2 (2025-11-15)
+kubectl run smd-producer-<MACHINE_ID> \
   --restart='Never' \
   --image-pull-policy='Always' \
-  --image dwnusa/smd-producer:v0.0.2-amd64
+  --image dwnusa/smd-producer-realtime:v0.1.2-amd64 \
+  --  --topic <TOPIC_NAME> \
+      --machine <MACHINE_ID>
+
+# depricated version v0.0.2
+# kubectl run smd-producer \
+#   --restart='Never' \
+#   --image-pull-policy='Always' \
+#   --image dwnusa/smd-producer:v0.0.2-amd64
+```
+**Producer-backfill**
+```bash
+# Kafka mode
+kubectl run smd-producer-backfill-kafka \
+  --restart='Never' \
+  --image-pull-policy='Always' \
+  --image dwnusa/smd-producer-backfill:v0.1.2-amd64 \
+  --  --dest kafka \
+      --bootstrap-servers kafka.kafka.svc.cluster.local:9092 \
+      --topic <TOPIC_NAME> \
+      --partitions 1 \ # default: 3
+      --replications 3 # default: 3
+
+# postgresql mode
+kubectl run smd-producer-backfill-postgresql \
+  --restart='Never' \
+  --image-pull-policy='Always' \
+  --image dwnusa/smd-producer-backfill:v0.1.2-amd64 \
+  --  --dest postgresql \
+      --pg-pass <REQUIRED> \
+      --pg-table <TABLE_NAME>
 ```
 **Consumer**
 ```bash
