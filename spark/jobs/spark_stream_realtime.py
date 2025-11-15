@@ -192,11 +192,11 @@ def main():
         .select("data.*")
 
     # PK 기준 중복 제거
-    dedup_df = json_df.dropDuplicates(["machine", "timestamp", "usage"])
+    # dedup_df = json_df.dropDuplicates(["machine", "timestamp", "usage"])
 
     # 타입 캐스팅
     final_df = (
-        dedup_df
+        json_df
         .withColumn("send_timestamp", to_timestamp(col("send_timestamp")))
     )
 
