@@ -72,7 +72,7 @@ def upsert_to_postgres(batch_df, batch_id, args, logger):
     CREATE TABLE IF NOT EXISTS {args.pg_table} (
         send_timestamp TIMESTAMPTZ,
         machine TEXT,
-        timestamp TIMESTAMPTZ,
+        timestamp TEXT,
         usage TEXT,
         PRIMARY KEY (machine, timestamp, usage),
         label INT,
