@@ -19,7 +19,7 @@ with DAG(
 
     # (1) Backfill Producer 실행
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator(
-        task_id="Producer Backfill Kafka",
+        task_id="Producer_Backfill_Kafka",
         name="smd-producer-backfill-kafka",
         namespace="default",
         image="dwnusa/smd-producer-backfill:v0.1.2-amd64",
@@ -38,7 +38,7 @@ with DAG(
 
     # (2) Spark Backfill Upsert 실행
     Spark_Backfill_Batch_Upsert = SparkKubernetesOperator(
-        task_id="Spark Backfill Batch Upsert",
+        task_id="Spark_Backfill_Batch_Upsert",
         in_cluster=True,              
         namespace="default",
         application_file="{{ '/opt/spark-yaml/yaml/spark-batch-backfill-upsert.yaml' }}",  # ✅ Jinja 렌더링 무시
