@@ -75,7 +75,11 @@ def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_fa
     topic = NewTopic(
         name=topic_name,
         num_partitions=num_partitions,
-        replication_factor=replication_factor
+        replication_factor=replication_factor,
+        topic_configs={
+            "retention.ms": "300000", # 분
+            "cleanup.policy": "delete"
+        }
     )
 
     try:

@@ -65,7 +65,11 @@ def create_topic(bootstrap_servers, topic_name, num_partitions=3, replication_fa
     topic = NewTopic(
         name=topic_name,
         num_partitions=num_partitions,
-        replication_factor=replication_factor
+        replication_factor=replication_factor,
+        topic_configs={
+            "retention.ms": "86400000", # 1일 = 24시간 * 60분 * 60초 * 1000 밀리초
+            "cleanup.policy": "delete"
+        }
     )
 
     try:
