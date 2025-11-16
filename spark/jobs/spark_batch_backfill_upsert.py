@@ -190,6 +190,7 @@ def main():
     # ✅ 저장 전 행 수 카운트 및 시간 측정
     total_inserted = final_df.count()
     logger.info(f"🧮 저장 예정 행 수: {total_inserted}")
+    logger.info(f"데이터프레임의 파티션 수 (병렬성) 확인: {final_df.rdd.getNumPartitions()}")
 
     start = datetime.now()
 
