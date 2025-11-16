@@ -323,7 +323,7 @@ print(conn)
 ```
 
 ## Diagram
-<img src="./KAS-on-M3K-v2.png" width="800">
+<img src="./KAS-on-M3K-v3.png" width="800">
 
 ## Todolist
 - [x] logger 필요함 (단순 print 만으로는 부족)
