@@ -130,8 +130,8 @@ kubectl run smd-producer-backfill-kafka \
   --  --dest kafka \
       --bootstrap-servers kafka.kafka.svc.cluster.local:9092 \
       --topic <TOPIC_NAME> \
-      --partitions 1 \ # default: 3
-      --replications 3 # default: 3
+      --partitions 14 \ # default: 3
+      --replications 1 # default: 3
 
 # postgresql mode
 kubectl run smd-producer-backfill-postgresql \
@@ -187,7 +187,7 @@ topic = NewTopic(
 ```
 ### 3.2 Change Topic Setup (Retentions time)
 ```bash
-kubectl exec -it kafka-controller-1 -n kafka \
+kubectl exec -it kafka-controller-0 -n kafka \
   -- kafka-configs.sh \
   --bootstrap-server kafka.kafka.svc.cluster.local:9092 \
   --entity-type topics \
