@@ -1,5 +1,6 @@
 from airflow import DAG
-from airflow.sdk import task, get_current_context, Param
+from airflow.decorators import task, get_current_context
+from airflow.models.param import Param
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.operators.python import PythonOperator
@@ -20,10 +21,11 @@ with DAG(
     # --------------------------
     # UI Form 에 나타나는 Params
     # --------------------------
+    # Airflow 3.x: Params는 여기에 선언
     params={
         "machines": Param(
             default="all",
-            description="사용할 machine 리스트. 'all' 또는 ['machine1','machine2'] 형태 입력",
+            description="all 또는 ['machine1','machine2'] 형태로 입력"
         )
     },
 ) as dag:
@@ -31,15 +33,14 @@ with DAG(
     # --------------------------------------------------------
     # (0) Params 기반 머신 리스트 정규화
     # --------------------------------------------------------
-    @task.python
+    @task
     def normalize_machine_list():
         ctx = get_current_context()
         machines = ctx["params"]["machines"]
 
         if machines == "all":
-            return ["all"]          # pod 1개만 생성
-        else:
-            return machines         # 리스트 그대로
+            return ["all"]
+        return machines
 
     machine_list = normalize_machine_list()
 
