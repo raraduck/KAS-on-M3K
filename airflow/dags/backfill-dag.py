@@ -49,17 +49,16 @@ with DAG(
         get_logs=True,
         is_delete_operator_pod=True,
     ).expand(
-        arguments=[
-            [
+        arguments=NormalizeMachines.output.map(
+            lambda machine_name: [
                 "--dest", "kafka",
                 "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
-                "--topic", "airflow-producer-backfill",
+                "--topic", "airflow-producer-backfill-by-machine",
                 "--partitions", "14",
                 "--replications", "1",
                 "--machine", machine_name,
             ]
-            for machine_name in NormalizeMachines.output
-        ],
+        )
     )
 
     # # (1) Backfill Producer 실행
