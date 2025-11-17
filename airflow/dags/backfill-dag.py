@@ -25,7 +25,7 @@ with DAG(
     params={
         "machines": Param(
             default="all",
-            description="all 또는 ['machine-1-1~8','machine-2-1~9', 'machine-3-1~11'] 형태로 입력"
+            description="all 또는 ['machine-1-1','machine-1-8','machine-2-1','machine-2-9', 'machine-3-1','machine-3-11'] 형태로 입력"
         )
     },
 ) as dag:
