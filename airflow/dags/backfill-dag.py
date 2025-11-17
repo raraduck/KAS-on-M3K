@@ -1,6 +1,5 @@
 from airflow import DAG
 from airflow.decorators import task
-from airflow.utils.context import get_current_context
 from airflow.models.param import Param
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -35,15 +34,13 @@ with DAG(
     # (0) Params 기반 머신 리스트 정규화
     # --------------------------------------------------------
     @task
-    def normalize_machine_list():
-        ctx = get_current_context()
-        machines = ctx["params"]["machines"]
-
+    def normalize_machine_list(machines):
         if machines == "all":
             return ["all"]
         return machines
 
-    machine_list = normalize_machine_list()
+    # Params 값은 Jinja로 전달
+    machine_list = normalize_machine_list("{{ params.machines }}")
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
