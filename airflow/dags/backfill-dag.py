@@ -1,5 +1,6 @@
 from airflow import DAG
-from airflow.decorators import task, get_current_context
+from airflow.decorators import task
+from airflow.utils.context import get_current_context
 from airflow.models.param import Param
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
