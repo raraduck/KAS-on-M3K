@@ -23,11 +23,11 @@ spec:
     - "--pg-user"
     - "dwnusa"
     - "--pg-table"
-    - "airflow_producer_backfill"
+    - "airflow-producer-backfill-by-machine"
     - "--kafka-bootstrap"
     - "kafka.kafka.svc.cluster.local:9092"
     - "--topic"
-    - "airflow-producer-backfill"
+    - "airflow-producer-backfill-by-machine"
     - "--days"
     - "1"
   driver:
@@ -39,7 +39,7 @@ spec:
         mountPath: /opt/spark-data
   executor:
     cores: 1
-    instances: 4
+    instances: 2
     memory: 512m
 #     securityContext:
 #       runAsUser: 0
