@@ -1,4 +1,5 @@
 from airflow import DAG
+from airflow.sdk import task, get_current_context, Param
 from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.operators.python import PythonOperator
@@ -16,27 +17,31 @@ with DAG(
     schedule=None,
     catchup=False,
     render_template_as_native_obj=True,
+    # --------------------------
+    # UI Form 에 나타나는 Params
+    # --------------------------
+    params={
+        "machines": Param(
+            default="all",
+            description="사용할 machine 리스트. 'all' 또는 ['machine1','machine2'] 형태 입력",
+        )
+    },
 ) as dag:
 
-    # -------------------------------------------------------------------
-    # (0) UI 입력값 정규화
-    #     - 입력 없으면 "all"
-    #     - "all"이면 ["all"] 로 감싸서 하나의 Pod 만 생성되게 함
-    # -------------------------------------------------------------------
-    def normalize_machine_list(**context):
-        machines = context["dag_run"].conf.get("machines", "all")
+    # --------------------------------------------------------
+    # (0) Params 기반 머신 리스트 정규화
+    # --------------------------------------------------------
+    @task.python
+    def normalize_machine_list():
+        ctx = get_current_context()
+        machines = ctx["params"]["machines"]
 
-        # UI 입력이 문자열 "all"  → ["all"]
         if machines == "all":
-            return ["all"]
+            return ["all"]          # pod 1개만 생성
+        else:
+            return machines         # 리스트 그대로
 
-        # UI 입력이 리스트 → 그대로 사용
-        return machines
-
-    NormalizeMachines = PythonOperator(
-        task_id="NormalizeMachines",
-        python_callable=normalize_machine_list,
-    )
+    machine_list = normalize_machine_list()
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
@@ -49,7 +54,7 @@ with DAG(
         get_logs=True,
         is_delete_operator_pod=True,
     ).expand(
-        arguments=NormalizeMachines.output.map(
+        arguments=machine_list.map(
             lambda machine_name: [
                 "--dest", "kafka",
                 "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
