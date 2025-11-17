@@ -28,8 +28,10 @@ spec:
     - "kafka.kafka.svc.cluster.local:9092"
     - "--topic"
     - "backfill-kafka"
-    - "--days"
-    - "1"
+    - "--trigger-interval"
+    - "5 seconds"
+    - "--checkpoint-location"
+    - "/tmp/checkpoint"
   driver:
     cores: 1
     memory: 512m
