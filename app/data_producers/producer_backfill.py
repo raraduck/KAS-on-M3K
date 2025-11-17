@@ -98,11 +98,12 @@ def json_serializer(data):
 
 
 # -------------------- CSV 파일 제너레이터 -------------------- #
-def iter_all_csv_rows(base_dir):
+def iter_all_csv_rows(machine, base_dir):
     """
     data/machine-*-*/*_train.csv 파일을 전부 순회하며 각 row yield
     """
-    data_pattern = os.path.join(base_dir, "data", "machine-*", "*_train.csv")
+    target_machine = "machine-*" if machine == "all" else machine
+    data_pattern = os.path.join(base_dir, "data", target_machine, "*_train.csv")
     csv_files = sorted(glob.glob(data_pattern))
 
     if not csv_files:
@@ -110,7 +111,7 @@ def iter_all_csv_rows(base_dir):
         return
 
     for csv_path in csv_files:
-        machine = os.path.basename(os.path.dirname(csv_path))
+        current_machine = os.path.basename(os.path.dirname(csv_path))
         logger.info(f"📂 읽는 중: {csv_path}")
 
         with open(csv_path, 'r', encoding='utf-8') as f:
@@ -118,11 +119,10 @@ def iter_all_csv_rows(base_dir):
             for row in reader:
                 numeric_row = {k: try_parse_number(k, v) for k, v in row.items()}
                 numeric_row["label"] = 0.0
-                numeric_row["usage"] = f"train"
                 numeric_row["send_timestamp"] = datetime.now().isoformat()
-                numeric_row["machine"] = machine
+                numeric_row["machine"] = current_machine
                 numeric_row["usage"] = f"train"
-                yield numeric_row, machine  # machine 이름도 반환
+                yield numeric_row, current_machine # 이름도 반환
 
 def to_str(x):
     if isinstance(x, bytes):
@@ -204,10 +204,10 @@ def main_kafka(args):
     logger.info("🚀 Kafka Producer 시작 (모든 machine-* CSV 병렬 전송). Ctrl+C로 종료.")
 
     try:
-        for record, machine in iter_all_csv_rows(base_dir):
+        for record, machine in iter_all_csv_rows(args.machine, base_dir):
             future = producer.send(
                 topic_name,
-                key=f"{machine}-train",  # 파티션 균등 분산을 위한 key
+                key=f"{machine}",  # 파티션 균등 분산을 위한 key
                 value=record
             )
             future.add_callback(on_send_success).add_errback(on_send_error)
@@ -272,7 +272,7 @@ def main_postgres(args):
 
     try:
         batch = []
-        for record, machine in iter_all_csv_rows(base_dir):
+        for record, machine in iter_all_csv_rows(args.machine, base_dir):
             cols = ["send_timestamp", "machine", "timestamp", "usage", "label"] + [f"col_{i}" for i in range(38)]
             values = [record.get(c, None) for c in cols]
             batch.append(values)
@@ -323,6 +323,8 @@ if __name__ == "__main__":
     parser.add_argument("--pg-user", default=os.getenv("PG_USER", "postgres"), help='PostgreSQL 사용자명')
     parser.add_argument("--pg-pass", default=os.getenv("PG_PASS", "postgres"), help='PostgreSQL 비밀번호')
     parser.add_argument("--pg-table", default=os.getenv("PG_TABLE", "smd_table_realtime"), help='PostgreSQL 테이블명')
+    
+    parser.add_argument('--machine', default='all', type=str, help='측정할 머신 이름 ex. machine-*-*')
 
     args = parser.parse_args()
 

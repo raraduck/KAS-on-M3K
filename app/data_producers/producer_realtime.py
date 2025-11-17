@@ -194,7 +194,7 @@ def main():
                 future = producer.send(
                     topic_name, 
                     value=message, 
-                    key=f"{args.machine}-test" # f"{args.machine}".encode("utf-8")
+                    key=f"{args.machine}" # f"{args.machine}".encode("utf-8")
                 )  # 반드시 bytes 형식
                 future.add_callback(on_send_success).add_errback(on_send_error)
 
