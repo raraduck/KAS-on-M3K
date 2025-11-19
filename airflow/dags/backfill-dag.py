@@ -24,8 +24,8 @@ with DAG(
     # Airflow 3.x: Params는 여기에 선언
     params={
         "machines": Param(
-            default="all",
-            description="all 또는 ['machine-1-1','machine-1-8','machine-2-1','machine-2-9', 'machine-3-1','machine-3-11'] 형태로 입력"
+            default="['machine-1-1']",
+            description="['all'] 또는 ['machine-1-1','machine-1-8','machine-2-1','machine-2-9', 'machine-3-1','machine-3-11'] 형태로 입력"
         )
     },
 ) as dag:
@@ -33,14 +33,17 @@ with DAG(
     # --------------------------------------------------------
     # (0) Params 기반 머신 리스트 정규화
     # --------------------------------------------------------
-    @task
-    def normalize_machine_list(machines):
-        if machines == "all":
-            return ["all"]
-        return machines
+    # @task
+    # def normalize_machine_list(machines):
+    #     return machines
 
-    # Params 값은 Jinja로 전달
-    machine_list = normalize_machine_list("{{ params.machines }}")
+    # # Params 값은 Jinja로 전달
+    # machine_list = normalize_machine_list("{{ params.machines }}")
+
+    topic = dag.params["topic"]
+    partitions = dag.params["partitions"]
+    replications = dag.params["replications"]
+    machines = dag.params["machines"]
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
@@ -53,16 +56,17 @@ with DAG(
         get_logs=True,
         is_delete_operator_pod=True,
     ).expand(
-        arguments=machine_list.map(
-            lambda machine_name: [
+        arguments=[
+            [
                 "--dest", "kafka",
                 "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
-                "--topic", "airflow-producer-backfill-by-machine",
-                "--partitions", "14",
-                "--replications", "1",
-                "--machine", machine_name,
+                "--topic", topic,
+                "--partitions", partitions,
+                "--replications", replications,
+                "--machine", m,
             ]
-        )
+            for m in machines
+        ]
     )
 
     # # (1) Backfill Producer 실행
