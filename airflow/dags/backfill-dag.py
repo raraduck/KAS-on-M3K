@@ -40,7 +40,7 @@ with DAG(
             description="String type input"
         ),
         "table": Param(
-            default="backfill-table",
+            default="backfill_table",
             description="String type input"
         ),
     },
