@@ -24,23 +24,25 @@ with DAG(
     # Airflow 3.x: Params는 여기에 선언
     params={
         "machines": Param(
-            default="all",
-            description="all 또는 ['machine-1-1','machine-1-8','machine-2-1','machine-2-9', 'machine-3-1','machine-3-11'] 형태로 입력"
+            default="['machine-1-1']",
+            description="['all'] 또는 ['machine-1-1', 'machine-1-8', 'machine-2-1', 'machine-2-9', 'machine-3-1', 'machine-3-11'] 형태로 입력"
+        ),
+        "topic": Param(
+            default="backfill-topic",
+            description="String type input"
+        ),
+        "partitions": Param(
+            default="14",
+            description="String type input"
+        ),
+        "replications": Param(
+            default="1",
+            description="String type input"
         )
     },
 ) as dag:
-
-    # --------------------------------------------------------
-    # (0) Params 기반 머신 리스트 정규화
-    # --------------------------------------------------------
-    @task
-    def normalize_machine_list(machines):
-        if machines == "all":
-            return ["all"]
-        return machines
-
-    # Params 값은 Jinja로 전달
-    machine_list = normalize_machine_list("{{ params.machines }}")
+    
+    machine_list = "{{ params.machines }}"
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
@@ -57,36 +59,13 @@ with DAG(
             lambda machine_name: [
                 "--dest", "kafka",
                 "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
-                "--topic", "airflow-producer-backfill-by-machine",
-                "--partitions", "14",
-                "--replications", "1",
+                "--topic", "{{ params.topic }}",
+                "--partitions", "{{ params.partitions }}",
+                "--replications", "{{ params.replications }}",
                 "--machine", machine_name,
             ]
         )
     )
-
-    # # (1) Backfill Producer 실행
-    # SMD_Producer_Backfill_Kafka = KubernetesPodOperator(
-    #     task_id="Producer_Backfill_Kafka",
-    #     name="smd-producer-backfill-kafka",
-    #     namespace="default",
-    #     image="dwnusa/smd-producer-backfill:v0.1.2-amd64",
-    #     cmds=[],   # 엔트리포인트 그대로 사용
-    #     arguments=[
-    #         [
-    #             "--dest", "kafka",
-    #             "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
-    #             "--topic", "airflow-producer-backfill",
-    #             "--partitions", "14",
-    #             "--replications", "1",
-    #             "--machine", machine_name,
-    #         ]
-    #         for machine_name in machines
-    #     ],
-    #     in_cluster=True,
-    #     get_logs=True,
-    #     is_delete_operator_pod=True,
-    # )
 
     # (2) Spark Backfill Upsert 실행
     Spark_Backfill_Batch_Upsert = SparkKubernetesOperator(
