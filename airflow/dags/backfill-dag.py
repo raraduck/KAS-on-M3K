@@ -12,6 +12,42 @@ default_args = {
     'start_date': datetime(2025, 5, 11),
 }
 
+# with DAG(
+#     dag_id='backfill_pipeline_parallel',
+#     default_args=default_args,
+#     schedule=None,
+#     catchup=False,
+#     render_template_as_native_obj=True,
+#     # --------------------------
+#     # UI Form 에 나타나는 Params
+#     # --------------------------
+#     # Airflow 3.x: Params는 여기에 선언
+#     params={
+#         "machines": Param(
+#             default=['machine-1-1'],
+#             description='["all"] 또는 ["machine-1-1", "machine-1-8", "machine-2-1", "machine-2-9", "machine-3-1", "machine-3-11"] 형태로 입력'
+#         ),
+#         "topic": Param(
+#             default="backfill-topic",
+#             description="String type input"
+#         ),
+#         "partitions": Param(
+#             default="14",
+#             description="String type input"
+#         ),
+#         "replications": Param(
+#             default="1",
+#             description="String type input"
+#         )
+#     },
+# ) as dag:
+    
+#     @task
+#     def get_machine_list(raw_list):
+#         return raw_list  # 이미 list임
+
+#     machine_list = get_machine_list(dag.params["machines"])
+
 with DAG(
     dag_id='backfill_pipeline_parallel',
     default_args=default_args,
@@ -24,8 +60,8 @@ with DAG(
     # Airflow 3.x: Params는 여기에 선언
     params={
         "machines": Param(
-            default=['machine-1-1'],
-            description='["all"] 또는 ["machine-1-1", "machine-1-8", "machine-2-1", "machine-2-9", "machine-3-1", "machine-3-11"] 형태로 입력'
+            default="['all']",
+            description="all 또는 ['machine-1-1','machine-1-8','machine-2-1','machine-2-9', 'machine-3-1','machine-3-11'] 형태로 입력"
         ),
         "topic": Param(
             default="backfill-topic",
@@ -41,12 +77,16 @@ with DAG(
         )
     },
 ) as dag:
-    
-    @task
-    def get_machine_list(raw_list):
-        return raw_list  # 이미 list임
 
-    machine_list = get_machine_list(dag.params["machines"])
+    # --------------------------------------------------------
+    # (0) Params 기반 머신 리스트 정규화
+    # --------------------------------------------------------
+    @task
+    def normalize_machine_list(machines):
+        return machines
+
+    # Params 값은 Jinja로 전달
+    machine_list = normalize_machine_list("{{ params.machines }}")
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
