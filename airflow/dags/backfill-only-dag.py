@@ -46,9 +46,12 @@ with DAG(
     # (0) Params 기반 머신 리스트 정규화
     # --------------------------------------------------------
     @task
+    def load_machine_list(machines):
+        return machines     # ← 이 값이 XComArg(list) 가 됨
+
+    @task
     def load_all_params(machines, topic, partitions, replications):
         return {
-            "machines": machines,
             "topic": topic,
             "partitions": partitions,
             "replications": replications,
@@ -60,7 +63,7 @@ with DAG(
         "{{ params.partitions }}",
         "{{ params.replications }}"
     )
-
+    machines = load_machine_list("{{ params.machines }}")
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
         task_id="Producer_Backfill_Kafka",
@@ -72,7 +75,7 @@ with DAG(
         get_logs=True,
         is_delete_operator_pod=True,
     ).expand(
-        arguments=params_value["machines"].map(
+        arguments=machines.map(
             lambda machine_name: [
                 "--dest", "kafka",
                 "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
