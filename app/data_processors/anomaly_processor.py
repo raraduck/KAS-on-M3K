@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-주식 가격 알림 프로세서 모듈
-Kafka에서 주식 가격 데이터를 소비하고 설정된 조건에 따라 알림을 생성합니다.
+이상감지 알림 프로세서 모듈
+Kafka에서 이상감지 데이터를 소비하고 설정된 조건에 따라 알림을 생성합니다.
 """
 
 import sys
@@ -159,7 +159,7 @@ class AnomalyAlert:
         for machine in MACHINES:
             self.alert_thresholds[machine] = OUTLIER_THRESHOLD
             
-        logger.info(f"주식 가격 알림 프로세서 초기화 완료. 알림 임계값: {self.alert_thresholds}")
+        logger.info(f"이상감지 알림 프로세서 초기화 완료. 알림 임계값: {self.alert_thresholds}")
     
     # def set_alert_threshold(self, ticker, threshold):
     #     """특정 종목의 알림 임계값 설정"""
@@ -180,7 +180,7 @@ class AnomalyAlert:
             if abs(zscore) >= threshold:
                 # 알림 메시지 생성
                 # direction = "상승" if change_pct > 0 else "하락"
-                message_text = f"{machine} 에서 z-score 가 {threshold}% 을 벗어나 이상현상이 감지되었습니다: {abs(zscore)}"
+                message_text = f"{machine} 에서 z-score 가 {threshold} 을 벗어나 이상현상이 감지되었습니다: {abs(zscore)}"
                 
                 # 알림 전송
                 logger.info(f"이상감지 알림 발생: {message_text}")

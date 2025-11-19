@@ -81,47 +81,90 @@ class EmailNotifier:
         except Exception as e:
             logger.error(f"이메일 전송 중 오류 발생: {e}")
             return False
-    
+        
+    def classify_severity(self, z):
+        """Z-score 기반 severity 분류"""
+        az = abs(z)
+        if az >= 3.0:
+            return "CRITICAL", "🚨🔥", "#d9534f"    # 강한 이상
+        elif az >= 2.0:
+            return "WARNING", "⚠️", "#f0ad4e"     # 경고
+        else:
+            return "NOTICE", "🔎", "#0275d8"      # 경미한 변동
+        
     def send_anomaly_alert(self, machine, zscore, message):
         """이상감지 알림 이메일 전송"""
-        # 이상치 통계량에 따른 이모지와 색상 설정
-        emoji = "🚀🚀🚀" if abs(zscore) > 2.57 else "🚀" if abs(zscore) > 1.96 else "📉"
-        color = "#dc3545" if abs(zscore) > 2.57 else "#fef607" if abs(zscore) > 1.96 else "#1f9a00"
+        # # 이상치 통계량에 따른 이모지와 색상 설정
+        # emoji = "🚀🚀🚀" if abs(zscore) > 2.57 else "🚀" if abs(zscore) > 1.96 else "📉"
+        # color = "#dc3545" if abs(zscore) > 2.57 else "#0707fe" if abs(zscore) > 1.96 else "#1f9a00"
         
+        # # 이메일 제목
+        # subject = f"{emoji} {machine} 이상감지 알림: {abs(zscore):.2f}"
+
+        severity, emoji, color = self.classify_severity(zscore)
+
         # 이메일 제목
-        subject = f"{emoji} {machine} 이상감지 알림: {abs(zscore):.2f}"
-        
+        subject = f"[{severity}] {emoji} {machine} Z-score={abs(zscore):.2f} | 이상 감지"
+
         # HTML 이메일 내용
         html_content = f"""
         <html>
-            <head>
-                <style>
-                    body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
-                    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                    .header {{ background-color: #f8f9fa; padding: 10px; border-radius: 5px; text-align: center; }}
-                    .content {{ padding: 20px 0; }}
-                    .price-box {{ padding: 15px; background-color: #f8f9fa; border-radius: 5px; margin-bottom: 20px; }}
-                    .price-change {{ color: {color}; font-weight: bold; }}
-                    .footer {{ font-size: 12px; color: #6c757d; border-top: 1px solid #e9ecef; padding-top: 10px; }}
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <div class="header">
-                        <h2>{emoji} {machine} 이상감지 알림</h2>
-                    </div>
-                    <div class="content">
-                        <div class="price-box">
-                            <p><strong>Z-Score:</strong> <span class="price-change">{abs(zscore):.2f}</span></p>
-                        </div>
-                        <p>{message}</p>
-                    </div>
-                    <div class="footer">
-                        <p>이 알림은 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}에 생성되었습니다.</p>
-                        <p>머신 이상감지 알림 파이프라인 - 자동 생성 메일입니다.</p>
-                    </div>
-                </div>
-            </body>
+        <body style="margin:0; padding:0; background-color:#f5f6fa; font-family:Arial, sans-serif;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f6fa; padding:20px 0;">
+            <tr>
+                <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:8px; padding:20px; border:1px solid #e0e0e0;">
+                    
+                    <!-- Header -->
+                    <tr>
+                    <td align="center" style="padding:15px; background-color:#f0f2f5; border-radius:6px;">
+                        <h2 style="margin:0; color:#333333; font-size:22px; font-weight:bold;">
+                        {emoji} {machine} 이상감지 알림
+                        </h2>
+                    </td>
+                    </tr>
+
+                    <!-- Z-score box -->
+                    <tr>
+                    <td style="padding:20px 0;">
+                        <table width="100%" cellpadding="12" cellspacing="0" 
+                            style="background-color:#fafafa; border-radius:6px; border:1px solid #e6e6e6;">
+                        <tr>
+                            <td style="font-size:16px; color:#333;">
+                            <strong>Z-Score: </strong>
+                            <span style="color:{color}; font-weight:bold; font-size:20px;">
+                                {abs(zscore):.2f}
+                            </span>
+                            </td>
+                        </tr>
+                        </table>
+                    </td>
+                    </tr>
+
+                    <!-- Message area -->
+                    <tr>
+                    <td style="padding:15px 0; font-size:15px; color:#333;">
+                        {message}
+                    </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                    <td style="padding-top:25px; font-size:12px; color:#777; border-top:1px solid #e6e6e6;">
+                        <p style="margin:6px 0;">
+                        이 알림은 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} 기준으로 생성되었습니다.
+                        </p>
+                        <p style="margin:6px 0;">
+                        머신 이상감지 파이프라인 자동 생성 메일입니다.
+                        </p>
+                    </td>
+                    </tr>
+
+                </table>
+                </td>
+            </tr>
+            </table>
+        </body>
         </html>
         """
         
