@@ -24,8 +24,8 @@ with DAG(
     # Airflow 3.x: Params는 여기에 선언
     params={
         "machines": Param(
-            default="['machine-1-1']",
-            description="['all'] 또는 ['machine-1-1', 'machine-1-8', 'machine-2-1', 'machine-2-9', 'machine-3-1', 'machine-3-11'] 형태로 입력"
+            default=['machine-1-1'],
+            description='["all"] 또는 ["machine-1-1", "machine-1-8", "machine-2-1", "machine-2-9", "machine-3-1", "machine-3-11"] 형태로 입력'
         ),
         "topic": Param(
             default="backfill-topic",
@@ -42,7 +42,11 @@ with DAG(
     },
 ) as dag:
     
-    machine_list = dag.params["machines"]
+    @task
+    def get_machine_list(raw_list):
+        return raw_list  # 이미 list임
+
+    machine_list = get_machine_list(dag.params["machines"])
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(

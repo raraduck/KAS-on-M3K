@@ -42,7 +42,11 @@ with DAG(
     },
 ) as dag:
     
-    machine_list = dag.params["machines"]
+    @task
+    def get_machine_list(raw_list):
+        return raw_list  # 이미 list임
+
+    machine_list = get_machine_list(dag.params["machines"])
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
