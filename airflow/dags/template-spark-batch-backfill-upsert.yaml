@@ -22,11 +22,11 @@ spec:
     - "--pg-user"
     - "dwnusa"
     - "--pg-table"
-    - "airflow_producer_backfill_by_machine"
+    - "{{ params.table }}"
     - "--kafka-bootstrap"
     - "kafka.kafka.svc.cluster.local:9092"
     - "--topic"
-    - "{{ params.topic }}"  # ← 변수 주입
+    - "{{ params.topic }}"
     - "--days"
     - "1"
   driver:

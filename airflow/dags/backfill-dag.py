@@ -38,7 +38,11 @@ with DAG(
         "replications": Param(
             default="1",
             description="String type input"
-        )
+        ),
+        "table": Param(
+            default="backfill-table",
+            description="String type input"
+        ),
     },
 ) as dag:
 
@@ -50,16 +54,17 @@ with DAG(
         return machines     # ← 이 값이 XComArg(list) 가 됨
     
     @task
-    def build_arguments_list(machines, topic, partitions, replications):
+    def build_arguments_list(machines, topic, partitions, replications, table):
         """각 머신별 arguments 리스트를 생성"""
         return [
             [
+                "--machine", machine,
                 "--dest", "kafka",
                 "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
                 "--topic", str(topic),
                 "--partitions", str(partitions),      # ← str() 추가
-                "--replications", str(replications),  # ← str() 추가
-                "--machine", machine,
+                "--replications", str(replications),  # ← str() 추가,
+                "--table", str(table)
             ]
             for machine in machines
         ]
@@ -70,7 +75,8 @@ with DAG(
         machines,
         "{{ params.topic }}",
         "{{ params.partitions }}",
-        "{{ params.replications }}"
+        "{{ params.replications }}",
+        "{{ params.table }}"
     )
 
     # (1) 머신별로 병렬 실행되는 Producer
