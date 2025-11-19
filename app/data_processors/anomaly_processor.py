@@ -141,7 +141,18 @@ class AnomalyAlert:
         """초기화 함수"""
         self.consumer = create_consumer(args)
         # self.slack_notifier = SlackNotifier()
-        self.email_notifier = EmailNotifier()
+        # EMAIL_SENDER
+        # EMAIL_PASSWORD
+        # EMAIL_RECIPIENT
+        # EMAIL_SMTP_SERVER
+        # EMAIL_SMTP_PORT
+        self.email_notifier = EmailNotifier(
+            args.email_sender, 
+            args.email_password, 
+            args.email_recipient,
+            args.email_smtp_server,
+            args.email_smtp_port
+        )
         self.alert_thresholds = {}  # 머신별 알림 임계값 (기본값은 PRICE_CHANGE_THRESHOLD 사용)
         
         # 기본 알림 임계값 설정
@@ -212,6 +223,13 @@ def main():
     parser.add_argument("--pg-user", default=os.getenv("PG_USER", "postgres"))
     parser.add_argument("--pg-pass", default=os.getenv("PG_PASS", "postgres"))
     parser.add_argument("--pg-table", default=os.getenv("PG_TABLE", "smd_table_realtime"))
+
+    parser.add_argument("--email-sender", default=os.getenv("EMAIL_SENDER", "")) # sender or EMAIL_SENDER
+    parser.add_argument("--email-password", default=os.getenv("EMAIL_PASSWORD", "")) # password or EMAIL_PASSWORD
+    parser.add_argument("--email-recipient", default=os.getenv("EMAIL_RECIPIENT", "")) # recipient or EMAIL_RECIPIENT
+    parser.add_argument("--email-smtp-server", default=os.getenv("EMAIL_SMTP_SERVER", "smtp.gmail.com")) # smtp_server or EMAIL_SMTP_SERVER or "smtp.gmail.com"
+    parser.add_argument("--email-smtp-port", default=os.getenv("EMAIL_SMTP_PORT", 587)) # smtp_port or EMAIL_SMTP_PORT or 587
+        
 
     # parser.add_argument("--batch-size", type=int, default=100, help="Postgres로 저장할 batch 크기")
 

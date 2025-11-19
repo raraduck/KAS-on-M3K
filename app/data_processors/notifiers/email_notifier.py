@@ -13,11 +13,11 @@ from email.mime.multipart import MIMEMultipart
 import sys
 import os
 from datetime import datetime
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 import logging
 
 # .env 파일 불러오기 (기본 경로: 현재 실행 디렉토리)
-load_dotenv()
+# load_dotenv()
 
 # 상위 디렉토리를 path에 추가하여 다른 모듈을 import할 수 있도록 함
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -73,11 +73,11 @@ class EmailNotifier:
     
     def __init__(self, sender=None, password=None, recipient=None, smtp_server=None, smtp_port=None):
         """초기화 함수"""
-        self.sender = os.getenv("EMAIL_SENDER", "") # sender or EMAIL_SENDER
-        self.password = os.getenv("EMAIL_PASSWORD", "") # password or EMAIL_PASSWORD
-        self.recipient = os.getenv("EMAIL_RECIPIENT", "") # recipient or EMAIL_RECIPIENT
-        self.smtp_server = os.getenv("EMAIL_SMTP_SERVER", "smtp.gmail.com") # smtp_server or EMAIL_SMTP_SERVER or "smtp.gmail.com"
-        self.smtp_port = os.getenv("EMAIL_SMTP_PORT", 587) # smtp_port or EMAIL_SMTP_PORT or 587
+        self.sender = sender # os.getenv("EMAIL_SENDER", "") # sender or EMAIL_SENDER
+        self.password = password # os.getenv("EMAIL_PASSWORD", "") # password or EMAIL_PASSWORD
+        self.recipient = recipient # os.getenv("EMAIL_RECIPIENT", "") # recipient or EMAIL_RECIPIENT
+        self.smtp_server = smtp_server # os.getenv("EMAIL_SMTP_SERVER", "smtp.gmail.com") # smtp_server or EMAIL_SMTP_SERVER or "smtp.gmail.com"
+        self.smtp_port = smtp_port # os.getenv("EMAIL_SMTP_PORT", 587) # smtp_port or EMAIL_SMTP_PORT or 587
         
         if not self.sender or not self.password or not self.recipient:
             logger.warning("이메일 설정이 완료되지 않았습니다. 이메일 알림이 비활성화됩니다.")
