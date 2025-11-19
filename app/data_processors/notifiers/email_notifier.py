@@ -24,49 +24,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # from utils.log_utils import setup_logger
 # from config.config import EMAIL_SENDER, EMAIL_PASSWORD, EMAIL_RECIPIENT, EMAIL_SMTP_SERVER, EMAIL_SMTP_PORT
 
-
-# -------------------- 로거 전역 선언 -------------------- #
-logger = None
-
-def setup_logger():
-    """로거 설정: 콘솔 + 파일 출력"""
-    # 로그 디렉터리 생성
-    log_dir = "logs"
-    os.makedirs(log_dir, exist_ok=True)
-
-    # 파일명: 실행 시각 기반
-    log_filename = os.path.join(log_dir, f"email_notifier_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
-
-    # 로거 생성
-    logger_obj = logging.getLogger()
-    logger_obj.setLevel(logging.INFO)
-
-    # 포맷 지정
-    formatter = logging.Formatter(
-        fmt="%(asctime)s [%(levelname)s] %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S"
-    )
-
-    # 스트림 핸들러 (콘솔용)
-    console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(formatter)
-    console_handler.flush = sys.stdout.flush  # ✅ 즉시 출력용
-
-    # 파일 핸들러 (로그파일용)
-    file_handler = logging.FileHandler(log_filename, mode='w', encoding='utf-8')
-    file_handler.setFormatter(formatter)
-
-    # 기존 핸들러 제거 후 재등록 (중복 방지)
-    if logger_obj.hasHandlers():
-        logger_obj.handlers.clear()
-    logger_obj.addHandler(console_handler)
-    logger_obj.addHandler(file_handler)
-
-    logging.info(f"🧾 Logging started: {log_filename}")
-
-    return logger_obj
-
-
+import logging
+logger = logging.getLogger("anomaly_processor")   # ★ 단순히 같은 이름으로 가져오기
 
 class EmailNotifier:
     """이메일 알림 클래스"""

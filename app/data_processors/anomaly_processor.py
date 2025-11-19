@@ -208,6 +208,8 @@ class AnomalyAlert:
 
 def main():
     global logger
+    logger = setup_logger("anomaly_processor")   # logger 객체 생성
+
     parser = argparse.ArgumentParser(description="Kafka → PostgreSQL Consumer")
 
     # Kafka 설정
