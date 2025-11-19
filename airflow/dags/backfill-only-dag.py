@@ -45,12 +45,17 @@ with DAG(
     # --------------------------------------------------------
     # (0) Params 기반 머신 리스트 정규화
     # --------------------------------------------------------
-    @task
-    def normalize_machine_list(machines):
-        return machines
+    # @task
+    # def normalize_machine_list(machines):
+    #     return machines
 
-    # Params 값은 Jinja로 전달
-    machine_list = normalize_machine_list("{{ params.machines }}")
+    # # Params 값은 Jinja로 전달
+    # machine_list = normalize_machine_list("{{ params.machines }}")
+    
+    topic = dag.params["topic"]
+    partitions = dag.params["partitions"]
+    replications = dag.params["replications"]
+    machines = dag.params["machines"]
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
