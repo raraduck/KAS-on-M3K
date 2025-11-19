@@ -45,9 +45,9 @@ with DAG(
     # --------------------------------------------------------
     # (0) Params 기반 머신 리스트 정규화
     # --------------------------------------------------------
-    # @task
-    # def normalize_machine_list(machines):
-    #     return machines
+    @task
+    def normalize_machine_list(machines):
+        return machines
 
     # Params 값은 Jinja로 전달
     machine_list = normalize_machine_list("{{ params.machines }}")
