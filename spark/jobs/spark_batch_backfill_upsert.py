@@ -154,6 +154,8 @@ def main():
         .config("spark.sql.session.timeZone", "Asia/Seoul")
         .getOrCreate()
     )
+    # 🔇 Spark 내부 INFO 로그 제거
+    spark.sparkContext.setLogLevel("ERROR")
 
     df = spark.read \
         .format("kafka") \

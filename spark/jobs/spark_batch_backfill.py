@@ -89,6 +89,8 @@ def main():
         .config("spark.sql.session.timeZone", "Asia/Seoul")  # ✅ 한국 시간 명시
         .getOrCreate()
     )
+    # 🔇 Spark 내부 INFO 로그 제거
+    spark.sparkContext.setLogLevel("ERROR")
 
     logger.info("🚀 Kafka 데이터 읽기 시작")
     df = spark.read \

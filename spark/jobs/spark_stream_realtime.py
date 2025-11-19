@@ -274,6 +274,8 @@ def main():
         .config("spark.streaming.kafka.consumer.cache.enabled", "false")
         .getOrCreate()
     )
+    # 🔇 Spark 내부 INFO 로그 제거
+    spark.sparkContext.setLogLevel("ERROR")
 
     # Kafka 스트림 읽기
     df = spark.readStream \

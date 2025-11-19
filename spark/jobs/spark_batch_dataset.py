@@ -72,6 +72,8 @@ def main():
         .config("spark.sql.session.timeZone", "Asia/Seoul")
         .getOrCreate()
     )
+    # 🔇 Spark 내부 INFO 로그 제거
+    spark.sparkContext.setLogLevel("ERROR")
 
     jdbc_url = f"jdbc:postgresql://{args.pg_host}:{args.pg_port}/{args.pg_db}"
     logger.info(f"🔗 Connecting to PostgreSQL {jdbc_url} ...")
