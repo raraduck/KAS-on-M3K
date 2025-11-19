@@ -56,9 +56,9 @@ with DAG(
             [
                 "--dest", "kafka",
                 "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
-                "--topic", topic,
-                "--partitions", partitions,
-                "--replications", replications,
+                "--topic", str(topic),
+                "--partitions", str(partitions),      # ← str() 추가
+                "--replications", str(replications),  # ← str() 추가
                 "--machine", machine,
             ]
             for machine in machines
