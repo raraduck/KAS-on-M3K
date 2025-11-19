@@ -92,7 +92,8 @@ with DAG(
         task_id="Spark_Backfill_Batch_Upsert",
         in_cluster=True,              
         namespace="default",
-        application_file="{{ '/opt/spark-yaml/yaml/template-spark-batch-backfill-upsert.yaml' }}",  # ✅ Jinja 렌더링 무시
+        # application_file="{{ '/opt/spark-yaml/yaml/template-spark-batch-backfill-upsert.yaml' }}",  # ✅ Jinja 렌더링 무시
+        application_file="template-spark-batch-backfill-upsert.yaml"
     )
 
     # 실행 순서: Backfill producer → Spark batch backfill upsert mode
