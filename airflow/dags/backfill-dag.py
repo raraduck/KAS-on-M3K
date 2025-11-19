@@ -64,7 +64,7 @@ with DAG(
                 "--topic", str(topic),
                 "--partitions", str(partitions),      # ← str() 추가
                 "--replications", str(replications),  # ← str() 추가,
-                "--table", str(table)
+                "--pg-table", str(table)
             ]
             for machine in machines
         ]
