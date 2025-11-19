@@ -25,7 +25,7 @@ with DAG(
     params={
         "machines": Param(
             default="['machine-1-1']",
-            description="['all'] 또는 ['machine-1-1','machine-1-8','machine-2-1','machine-2-9', 'machine-3-1','machine-3-11'] 형태로 입력"
+            description="['all'] 또는 ['machine-1-1', 'machine-1-8', 'machine-2-1', 'machine-2-9', 'machine-3-1', 'machine-3-11'] 형태로 입력"
         ),
         "topic": Param(
             default="backfill-topic",
@@ -46,15 +46,32 @@ with DAG(
     # (0) Params 기반 머신 리스트 정규화
     # --------------------------------------------------------
     @task
-    def normalize_machine_list(machines):
-        return machines
-
-    # Params 값은 Jinja로 전달
-    machine_list = normalize_machine_list("{{ params.machines }}")
+    def load_machine_list(machines):
+        return machines     # ← 이 값이 XComArg(list) 가 됨
     
-    topic = dag.params["topic"]
-    partitions = dag.params["partitions"]
-    replications = dag.params["replications"]
+    @task
+    def build_arguments_list(machines, topic, partitions, replications):
+        """각 머신별 arguments 리스트를 생성"""
+        return [
+            [
+                "--dest", "kafka",
+                "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
+                "--topic", str(topic),
+                "--partitions", str(partitions),      # ← str() 추가
+                "--replications", str(replications),  # ← str() 추가
+                "--machine", machine,
+            ]
+            for machine in machines
+        ]
+    
+    # 사용
+    machines = load_machine_list("{{ params.machines }}")
+    arguments_list = build_arguments_list(
+        machines,
+        "{{ params.topic }}",
+        "{{ params.partitions }}",
+        "{{ params.replications }}"
+    )
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
@@ -67,47 +84,15 @@ with DAG(
         get_logs=True,
         is_delete_operator_pod=True,
     ).expand(
-        arguments=machine_list.map(
-            lambda machine_name: [
-                "--dest", "kafka",
-                "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
-                "--topic", topic,
-                "--partitions", partitions,
-                "--replications", replications,
-                "--machine", machine_name,
-            ]
-        )
+        arguments=arguments_list  # ← XComArg가 아닌 리스트를 직접 전달
     )
-
-    # # (1) Backfill Producer 실행
-    # SMD_Producer_Backfill_Kafka = KubernetesPodOperator(
-    #     task_id="Producer_Backfill_Kafka",
-    #     name="smd-producer-backfill-kafka",
-    #     namespace="default",
-    #     image="dwnusa/smd-producer-backfill:v0.1.2-amd64",
-    #     cmds=[],   # 엔트리포인트 그대로 사용
-    #     arguments=[
-    #         [
-    #             "--dest", "kafka",
-    #             "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
-    #             "--topic", "airflow-producer-backfill",
-    #             "--partitions", "14",
-    #             "--replications", "1",
-    #             "--machine", machine_name,
-    #         ]
-    #         for machine_name in machines
-    #     ],
-    #     in_cluster=True,
-    #     get_logs=True,
-    #     is_delete_operator_pod=True,
-    # )
 
     # (2) Spark Backfill Upsert 실행
     Spark_Backfill_Batch_Upsert = SparkKubernetesOperator(
         task_id="Spark_Backfill_Batch_Upsert",
         in_cluster=True,              
         namespace="default",
-        application_file="{{ '/opt/spark-yaml/yaml/spark-batch-backfill-upsert.yaml' }}",  # ✅ Jinja 렌더링 무시
+        application_file="{{ '/opt/spark-yaml/yaml/template-spark-batch-backfill-upsert.yaml' }}",  # ✅ Jinja 렌더링 무시
     )
 
     # 실행 순서: Backfill producer → Spark batch backfill upsert mode

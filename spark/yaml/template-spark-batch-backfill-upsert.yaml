@@ -1,0 +1,49 @@
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: spark-batch-backfill-upsert
+  namespace: default
+spec:
+  type: Python
+  mode: cluster
+  image: dwnusa/spark:v3.5.4.1-amd64
+  imagePullPolicy: IfNotPresent
+  mainApplicationFile: local:///opt/spark-data/spark_batch_backfill_upsert.py
+  sparkVersion: 3.5.4
+  restartPolicy:
+    type: Never
+  arguments:
+    - "--pg-host"
+    - "10.246.246.33"
+    - "--pg-port"
+    - "12345"
+    - "--pg-db"
+    - "testdb"
+    - "--pg-user"
+    - "dwnusa"
+    - "--pg-table"
+    - "airflow_producer_backfill_by_machine"
+    - "--kafka-bootstrap"
+    - "kafka.kafka.svc.cluster.local:9092"
+    - "--topic"
+    - "{{ params.topic }}"  # ← 변수 주입
+    - "--days"
+    - "1"
+  driver:
+    cores: 1
+    memory: 512m
+    serviceAccount: spark-operator-spark
+    volumeMounts:
+      - name: data
+        mountPath: /opt/spark-data
+  executor:
+    cores: 1
+    instances: 2
+    memory: 512m
+    volumeMounts:
+      - name: data
+        mountPath: /opt/spark-data
+  volumes:
+    - name: data
+      hostPath:
+        path: /opt/spark/jobs
