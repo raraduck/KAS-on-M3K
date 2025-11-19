@@ -68,17 +68,17 @@ load_dotenv()
 # -------------------- 로거 전역 선언 -------------------- #
 logger = None
 
-def setup_logger():
+def setup_logger(logger_name="anomaly_processor"):
     """로거 설정: 콘솔 + 파일 출력"""
     # 로그 디렉터리 생성
     log_dir = "logs"
     os.makedirs(log_dir, exist_ok=True)
 
     # 파일명: 실행 시각 기반
-    log_filename = os.path.join(log_dir, f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
+    log_filename = os.path.join(log_dir, f"{logger_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log")
 
     # 로거 생성
-    logger_obj = logging.getLogger()
+    logger_obj = logging.getLogger(logger_name)
     logger_obj.setLevel(logging.INFO)
 
     # 포맷 지정
