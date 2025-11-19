@@ -46,15 +46,20 @@ with DAG(
     # (0) Params 기반 머신 리스트 정규화
     # --------------------------------------------------------
     @task
-    def normalize_machine_list(machines):
-        return machines
+    def load_all_params(machines, topic, partitions, replications):
+        return {
+            "machines": machines,
+            "topic": topic,
+            "partitions": partitions,
+            "replications": replications,
+        }
 
-    # Params 값은 Jinja로 전달
-    machine_list = normalize_machine_list("{{ params.machines }}")
-    
-    topic = dag.params["topic"]
-    partitions = dag.params["partitions"]
-    replications = dag.params["replications"]
+    params_value = load_all_params(
+        "{{ params.machines }}",
+        "{{ params.topic }}",
+        "{{ params.partitions }}",
+        "{{ params.replications }}"
+    )
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
@@ -67,13 +72,13 @@ with DAG(
         get_logs=True,
         is_delete_operator_pod=True,
     ).expand(
-        arguments=machine_list.map(
+        arguments=params_value["machines"].map(
             lambda machine_name: [
                 "--dest", "kafka",
                 "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
-                "--topic", topic,
-                "--partitions", partitions,
-                "--replications", replications,
+                "--topic", params_value["topic"],
+                "--partitions", params_value["partitions"],
+                "--replications", params_value["replications"],
                 "--machine", machine_name,
             ]
         )
