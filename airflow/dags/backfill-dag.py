@@ -12,42 +12,6 @@ default_args = {
     'start_date': datetime(2025, 5, 11),
 }
 
-# with DAG(
-#     dag_id='backfill_pipeline_parallel',
-#     default_args=default_args,
-#     schedule=None,
-#     catchup=False,
-#     render_template_as_native_obj=True,
-#     # --------------------------
-#     # UI Form 에 나타나는 Params
-#     # --------------------------
-#     # Airflow 3.x: Params는 여기에 선언
-#     params={
-#         "machines": Param(
-#             default=['machine-1-1'],
-#             description='["all"] 또는 ["machine-1-1", "machine-1-8", "machine-2-1", "machine-2-9", "machine-3-1", "machine-3-11"] 형태로 입력'
-#         ),
-#         "topic": Param(
-#             default="backfill-topic",
-#             description="String type input"
-#         ),
-#         "partitions": Param(
-#             default="14",
-#             description="String type input"
-#         ),
-#         "replications": Param(
-#             default="1",
-#             description="String type input"
-#         )
-#     },
-# ) as dag:
-    
-#     @task
-#     def get_machine_list(raw_list):
-#         return raw_list  # 이미 list임
-
-#     machine_list = get_machine_list(dag.params["machines"])
-
 with DAG(
     dag_id='backfill_pipeline_parallel',
     default_args=default_args,
@@ -60,20 +24,8 @@ with DAG(
     # Airflow 3.x: Params는 여기에 선언
     params={
         "machines": Param(
-            default="['all']",
+            default="all",
             description="all 또는 ['machine-1-1','machine-1-8','machine-2-1','machine-2-9', 'machine-3-1','machine-3-11'] 형태로 입력"
-        ),
-        "topic": Param(
-            default="backfill-topic",
-            description="String type input"
-        ),
-        "partitions": Param(
-            default="14",
-            description="String type input"
-        ),
-        "replications": Param(
-            default="1",
-            description="String type input"
         )
     },
 ) as dag:
@@ -83,6 +35,8 @@ with DAG(
     # --------------------------------------------------------
     @task
     def normalize_machine_list(machines):
+        if machines == "all":
+            return ["all"]
         return machines
 
     # Params 값은 Jinja로 전달
@@ -103,13 +57,36 @@ with DAG(
             lambda machine_name: [
                 "--dest", "kafka",
                 "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
-                "--topic", "{{ params.topic }}",
-                "--partitions", "{{ params.partitions }}",
-                "--replications", "{{ params.replications }}",
+                "--topic", "airflow-producer-backfill-by-machine",
+                "--partitions", "14",
+                "--replications", "1",
                 "--machine", machine_name,
             ]
         )
     )
+
+    # # (1) Backfill Producer 실행
+    # SMD_Producer_Backfill_Kafka = KubernetesPodOperator(
+    #     task_id="Producer_Backfill_Kafka",
+    #     name="smd-producer-backfill-kafka",
+    #     namespace="default",
+    #     image="dwnusa/smd-producer-backfill:v0.1.2-amd64",
+    #     cmds=[],   # 엔트리포인트 그대로 사용
+    #     arguments=[
+    #         [
+    #             "--dest", "kafka",
+    #             "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
+    #             "--topic", "airflow-producer-backfill",
+    #             "--partitions", "14",
+    #             "--replications", "1",
+    #             "--machine", machine_name,
+    #         ]
+    #         for machine_name in machines
+    #     ],
+    #     in_cluster=True,
+    #     get_logs=True,
+    #     is_delete_operator_pod=True,
+    # )
 
     # (2) Spark Backfill Upsert 실행
     Spark_Backfill_Batch_Upsert = SparkKubernetesOperator(
