@@ -328,6 +328,10 @@ print(conn)
 ## Todolist
 - [x] logger 필요함 (단순 print 만으로는 부족)
 - [ ] try catch 자세하게 적용
+- [ ] email 또는 slack 알림 추가
+- [ ] 부하테스트 추가
+- [ ] airflow 에서 실패 또는 성공 알림 추가
+- [ ] 다운스트림 로직 구현 (scalability 중요)
 - [ ] PCA 사용하여 정보량이 높은 feature 확인하기 (sklearn container)
 ```python
 from sklearn.decomposition import PCA
