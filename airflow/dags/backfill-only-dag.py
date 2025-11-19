@@ -42,7 +42,7 @@ with DAG(
     },
 ) as dag:
     
-    machine_list = "{{ params.machines }}"
+    machine_list = dag.params["machines"]
 
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
