@@ -48,22 +48,31 @@ with DAG(
     @task
     def load_machine_list(machines):
         return machines     # ← 이 값이 XComArg(list) 가 됨
-
+    
     @task
-    def load_all_params(machines, topic, partitions, replications):
-        return {
-            "topic": topic,
-            "partitions": partitions,
-            "replications": replications,
-        }
-
-    params_value = load_all_params(
-        "{{ params.machines }}",
+    def build_arguments_list(machines, topic, partitions, replications):
+        """각 머신별 arguments 리스트를 생성"""
+        return [
+            [
+                "--dest", "kafka",
+                "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
+                "--topic", topic,
+                "--partitions", partitions,
+                "--replications", replications,
+                "--machine", machine,
+            ]
+            for machine in machines
+        ]
+    
+    # 사용
+    machines = load_machine_list("{{ params.machines }}")
+    arguments_list = build_arguments_list(
+        machines,
         "{{ params.topic }}",
         "{{ params.partitions }}",
         "{{ params.replications }}"
     )
-    machines = load_machine_list("{{ params.machines }}")
+
     # (1) 머신별로 병렬 실행되는 Producer
     SMD_Producer_Backfill_Kafka = KubernetesPodOperator.partial(
         task_id="Producer_Backfill_Kafka",
@@ -75,16 +84,7 @@ with DAG(
         get_logs=True,
         is_delete_operator_pod=True,
     ).expand(
-        arguments=machines.map(
-            lambda machine_name: [
-                "--dest", "kafka",
-                "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
-                "--topic", params_value["topic"],
-                "--partitions", params_value["partitions"],
-                "--replications", params_value["replications"],
-                "--machine", machine_name,
-            ]
-        )
+        arguments=arguments_list  # ← XComArg가 아닌 리스트를 직접 전달
     )
 
     # 실행 순서: Backfill producer
