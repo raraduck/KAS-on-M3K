@@ -31,10 +31,10 @@ with DAG(
             default="datalake_table",
             description="dash(-) must be replaced to underline(_)"
         ),
-        "executor": Param(
-            default="2",
-            description="recommend to set 2, 4, 6, 8"
-        ),
+        # "executor": Param(
+        #     default="2",
+        #     description="recommend to set 2, 4, 6, 8"
+        # ),
     },
 ) as dag:
 
