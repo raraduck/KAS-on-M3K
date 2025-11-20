@@ -13,7 +13,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id='Producer_backfill_arallel',
+    dag_id='Producer_backfill_parallel',
     default_args=default_args,
     schedule=None,
     catchup=False,
