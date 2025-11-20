@@ -37,20 +37,28 @@ with DAG(
         # ),
     },
 ) as dag:
-
-    # (1) Spark Stream Upsert 실행
-    Spark_Stream_Upsert = SparkKubernetesOperator(
+    Spark_Stream_Upsert = KubernetesPodOperator(
         task_id="Stream_Upsert",
-        name="spark-stream-upsert",
-        in_cluster=True,              
-        namespace="default",
-        application_file="template-spark-stream-realtime.yaml",
-        do_xcom_push=False,
-        deferrable=True,  # 비동기 모드
-        poll_interval=10  # 상태 확인 간격
-        # startup_timeout_seconds=120,  # 2분 안에 시작되면 OK
-        # get_logs=False,  # 로그 수집 비활성화 (선택)
+        image="bitnami/kubectl",
+        cmds=["sh", "-c"],
+        arguments=["kubectl apply -f template-spark-stream-realtime.yaml"],
+        in_cluster=True,
     )
+    KubernetesPodOperator
 
-    # 실행 순서: Spark stream upsert mode
-    Spark_Stream_Upsert
+    # # (1) Spark Stream Upsert 실행
+    # Spark_Stream_Upsert = SparkKubernetesOperator(
+    #     task_id="Stream_Upsert",
+    #     name="spark-stream-upsert",
+    #     in_cluster=True,              
+    #     namespace="default",
+    #     application_file="template-spark-stream-realtime.yaml",
+    #     do_xcom_push=False,
+    #     deferrable=True,  # 비동기 모드
+    #     poll_interval=10  # 상태 확인 간격
+    #     # startup_timeout_seconds=120,  # 2분 안에 시작되면 OK
+    #     # get_logs=False,  # 로그 수집 비활성화 (선택)
+    # )
+
+    # # 실행 순서: Spark stream upsert mode
+    # Spark_Stream_Upsert
