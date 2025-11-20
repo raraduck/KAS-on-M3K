@@ -46,7 +46,7 @@ with DAG(
         namespace="default",
         application_file="template-spark-stream-realtime.yaml",
         do_xcom_push=False,
-        deferrable=True,  # 비동기 모드
+        deferrable=False,  # 비동기 모드
         poll_interval=10,  # 상태 확인 간격
         get_logs=False  # 로그 수집 비활성화 (선택)
         # startup_timeout_seconds=120,  # 2분 안에 시작되면 OK
