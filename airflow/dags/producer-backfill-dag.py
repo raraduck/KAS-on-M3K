@@ -13,7 +13,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id='backfill_pipeline_parallel',
+    dag_id='Producer_backfill_arallel',
     default_args=default_args,
     schedule=None,
     catchup=False,
@@ -38,11 +38,7 @@ with DAG(
         "replications": Param(
             default="1",
             description="String type input"
-        ),
-        "table": Param(
-            default="backfill_table",
-            description="String type input"
-        ),
+        )
     },
 ) as dag:
 
@@ -54,17 +50,16 @@ with DAG(
         return machines     # ← 이 값이 XComArg(list) 가 됨
     
     @task
-    def build_arguments_list(machines, topic, partitions, replications, table):
+    def build_arguments_list(machines, topic, partitions, replications):
         """각 머신별 arguments 리스트를 생성"""
         return [
             [
-                "--machine", machine,
                 "--dest", "kafka",
                 "--bootstrap-servers", "kafka.kafka.svc.cluster.local:9092",
                 "--topic", str(topic),
                 "--partitions", str(partitions),      # ← str() 추가
-                "--replications", str(replications),  # ← str() 추가,
-                "--pg-table", str(table)
+                "--replications", str(replications),  # ← str() 추가
+                "--machine", machine,
             ]
             for machine in machines
         ]
@@ -75,8 +70,7 @@ with DAG(
         machines,
         "{{ params.topic }}",
         "{{ params.partitions }}",
-        "{{ params.replications }}",
-        "{{ params.table }}"
+        "{{ params.replications }}"
     )
 
     # (1) 머신별로 병렬 실행되는 Producer
@@ -93,14 +87,5 @@ with DAG(
         arguments=arguments_list  # ← XComArg가 아닌 리스트를 직접 전달
     )
 
-    # (2) Spark Backfill Upsert 실행
-    Spark_Backfill_Batch_Upsert = SparkKubernetesOperator(
-        task_id="Spark_Backfill_Batch_Upsert",
-        in_cluster=True,              
-        namespace="default",
-        # application_file="{{ '/opt/spark-yaml/yaml/template-spark-batch-backfill-upsert.yaml' }}",  # ✅ Jinja 렌더링 무시
-        application_file="template-spark-batch-backfill-upsert.yaml"
-    )
-
-    # 실행 순서: Backfill producer → Spark batch backfill upsert mode
-    SMD_Producer_Backfill_Kafka >> Spark_Backfill_Batch_Upsert
+    # 실행 순서: Backfill producer
+    SMD_Producer_Backfill_Kafka
