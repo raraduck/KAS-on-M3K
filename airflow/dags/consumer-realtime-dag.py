@@ -44,7 +44,8 @@ with DAG(
         name="spark-stream-upsert",
         in_cluster=True,              
         namespace="default",
-        application_file="template-spark-stream-realtime.yaml"
+        application_file="template-spark-stream-realtime.yaml",
+        do_xcom_push=False  # ★ 스트리밍 Job 종료를 기다리지 않음 → 시작만 하고 SUCCESS 처리
     )
 
     # 실행 순서: Spark stream upsert mode
