@@ -44,7 +44,7 @@ with DAG(
         name="spark-stream-upsert",
         in_cluster=True,              
         namespace="default",
-        application_file="teamplate-spark-stream-realtime.yaml"
+        application_file="template-spark-stream-realtime.yaml"
     )
 
     # 실행 순서: Spark stream upsert mode
