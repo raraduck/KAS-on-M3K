@@ -1,7 +1,11 @@
 from airflow import DAG
+from airflow.decorators import task
 from airflow.models.param import Param
+from airflow.providers.cncf.kubernetes.operators.spark_kubernetes import SparkKubernetesOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
+from airflow.operators.python import PythonOperator
 from datetime import datetime
+# from kubernetes.client import models as k8s
 
 default_args = {
     'owner': 'airflow',
@@ -14,79 +18,39 @@ with DAG(
     schedule=None,
     catchup=False,
     render_template_as_native_obj=True,
+    # --------------------------
+    # UI Form 에 나타나는 Params
+    # --------------------------
+    # Airflow 3.x: Params는 여기에 선언
     params={
-        "topic": Param(default="realtime-topic", description="Kafka topic name"),
-        "table": Param(default="datalake_table", description="PostgreSQL table name")
+        "topic": Param(
+            default="realtime-topic",
+            description="String type input"
+        ),
+        "table": Param(
+            default="datalake_table",
+            description="dash(-) must be replaced to underline(_)"
+        ),
+        # "executor": Param(
+        #     default="2",
+        #     description="recommend to set 2, 4, 6, 8"
+        # ),
     },
 ) as dag:
 
-    # -----------------------------
-    # Inline SparkApplication YAML
-    # -----------------------------
-    spark_manifest = """
-apiVersion: sparkoperator.k8s.io/v1beta2
-kind: SparkApplication
-metadata:
-  name: spark-stream-realtime
-  namespace: default
-spec:
-  type: Python
-  mode: cluster
-  image: dwnusa/spark:v3.5.4.1-amd64
-  imagePullPolicy: IfNotPresent
-  mainApplicationFile: local:///opt/spark-data/spark_stream_realtime.py
-  sparkVersion: 3.5.4
-  restartPolicy:
-    type: Never
-  arguments:
-    - "--pg-host"
-    - "10.246.246.33"
-    - "--pg-port"
-    - "12345"
-    - "--pg-db"
-    - "testdb"
-    - "--pg-user"
-    - "dwnusa"
-    - "--pg-table"
-    - "{{ params.table }}"
-    - "--kafka-bootstrap"
-    - "kafka.kafka.svc.cluster.local:9092"
-    - "--topic"
-    - "{{ params.topic }}"
-    - "--trigger-interval"
-    - "5 seconds"
-    - "--checkpoint-location"
-    - "/tmp/checkpoint"
-  driver:
-    cores: 1
-    memory: 512m
-    serviceAccount: spark-operator-spark
-    volumeMounts:
-      - name: data
-        mountPath: /opt/spark-data
-  executor:
-    cores: 1
-    instances: 4
-    memory: 512m
-    volumeMounts:
-      - name: data
-        mountPath: /opt/spark-data
-  volumes:
-    - name: data
-      hostPath:
-        path: /opt/spark/jobs
-"""
-
-    # Pod → SparkApplication 생성
-    Spark_Stream_Upsert = KubernetesPodOperator(
+    # (1) Spark Stream Upsert 실행
+    Spark_Stream_Upsert = SparkKubernetesOperator(
         task_id="Stream_Upsert",
         name="spark-stream-upsert",
+        in_cluster=True,              
         namespace="default",
-        image="bitnami/kubectl:latest",
-        cmds=["/bin/sh", "-c"],
-        arguments=[f'echo """{spark_manifest}""" | kubectl apply -f -'],
-        in_cluster=True,
-        get_logs=True,
-        # is_delete_operator_pod=True,
-        do_xcom_push=False
+        application_file="template-spark-stream-realtime.yaml",
+        do_xcom_push=False,
+        deferrable=True,  # 비동기 모드
+        poll_interval=10  # 상태 확인 간격
+        # startup_timeout_seconds=120,  # 2분 안에 시작되면 OK
+        # get_logs=False,  # 로그 수집 비활성화 (선택)
     )
+
+    # 실행 순서: Spark stream upsert mode
+    Spark_Stream_Upsert
