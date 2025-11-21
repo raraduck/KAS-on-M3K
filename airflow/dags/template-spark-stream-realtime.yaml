@@ -28,7 +28,7 @@ spec:
     - "--topic"
     - "{{ params.topic }}"
     - "--eph-topic"
-    - "{{ params.eph-topic }}"
+    - "{{ params.eph_topic }}"
     - "--trigger-interval"
     - "5 seconds"
     - "--checkpoint-location"

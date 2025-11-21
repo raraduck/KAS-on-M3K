@@ -27,7 +27,7 @@ with DAG(
             default="realtime-topic",
             description="String type input"
         ),
-        "eph-topic": Param(
+        "eph_topic": Param(
             default="realtime-eph-topic",
             description="String type input"
         ),
