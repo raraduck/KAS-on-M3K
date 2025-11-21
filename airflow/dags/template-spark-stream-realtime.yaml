@@ -27,6 +27,8 @@ spec:
     - "kafka.kafka.svc.cluster.local:9092"
     - "--topic"
     - "{{ params.topic }}"
+    - "--eph-topic"
+    - "{{ params.eph-topic }}"
     - "--trigger-interval"
     - "5 seconds"
     - "--checkpoint-location"

@@ -27,6 +27,10 @@ with DAG(
             default="realtime-topic",
             description="String type input"
         ),
+        "eph-topic": Param(
+            default="realtime-eph-topic",
+            description="String type input"
+        ),
         "table": Param(
             default="datalake_table",
             description="dash(-) must be replaced to underline(_)"
