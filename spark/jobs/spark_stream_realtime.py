@@ -8,6 +8,7 @@ from pyspark.sql.functions import col, from_json, to_timestamp, lit
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
 import os
 import sys
+import json
 import argparse
 import logging
 import psycopg2
@@ -348,44 +349,43 @@ def process_batch(batch_df, batch_id, args, logger):
         # ---------------------------
         # 🔥 Driver에서 eph-topic으로 row_count 만큼 send() 전송
         # ---------------------------
-        # producer = get_kafka_producer(args.kafka_bootstrap)
-        # for _ in range(row_count):
-        #     # producer.send(args.eph_topic, b"1", partition=None)
+        msg = json.dumps({
+            "batch_id": batch_id,
+            "rows": row_count,
+            "ts": datetime.now().isoformat()
+        }).encode("utf-8")
 
-        #     future = _kafka_producer.send(args.eph_topic, b"")
-        #     try:
-        #         future.get(timeout=5)
-        #     except Exception as e:
-        #         logger.error(f"🚨 eph-topic send 실패: {e}")
+        _kafka_producer.send(args.eph_topic, msg)
+        _kafka_producer.flush()
 
-        # _kafka_producer.flush(timeout=10)
+        logger.info(f"[Batch {batch_id}] eph-topic offset {row_count} 완료")
 
-        # ---------------------------
-        # 🔥 Driver에서 eph-topic으로 row_count 만큼 offset 갱신
-        # ---------------------------
-        from kafka import KafkaConsumer, TopicPartition
-        from kafka.structs import OffsetAndMetadata
+        # # ---------------------------
+        # # 🔥 Driver에서 eph-topic으로 row_count 만큼 offset 갱신
+        # # ---------------------------
+        # from kafka import KafkaConsumer, TopicPartition
+        # from kafka.structs import OffsetAndMetadata
 
-        consumer = KafkaConsumer(
-            group_id = args.eph_topic,
-            bootstrap_servers=args.kafka_bootstrap,
-            enable_auto_commit=False,
-        )
-        tp = TopicPartition(args.eph_topic, 0)
-        consumer.assign([tp])
+        # consumer = KafkaConsumer(
+        #     group_id = f"{args.eph_topic}-group",
+        #     bootstrap_servers=args.kafka_bootstrap,
+        #     enable_auto_commit=False,
+        # )
+        # tp = TopicPartition(args.eph_topic, 0)
+        # consumer.assign([tp])
 
-        # 🎯 반드시 poll() 해야 position/commit 가능
-        consumer.poll(timeout_ms=1)
+        # # 🎯 반드시 poll() 해야 position/commit 가능
+        # consumer.poll(timeout_ms=1)
+
+        # current = consumer.position(tp)
+
+        # new_offset = current + row_count
         
-        current = consumer.position(tp)
+        # consumer.commit({
+        #     tp: OffsetAndMetadata(new_offset, None)
+        # })
 
-        new_offset = current + row_count
-        
-        consumer.commit({
-            tp: OffsetAndMetadata(new_offset, None)
-        })
-
-        logger.info(f"[Batch {batch_id}] eph-topic offset {new_offset} 로 commit 완료")
+        # logger.info(f"[Batch {batch_id}] eph-topic offset {new_offset} 로 commit 완료")
 
 
 # -----------------------------------------------------
