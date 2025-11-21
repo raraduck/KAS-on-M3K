@@ -41,6 +41,27 @@ def get_connection_pool(args):
         )
     return _connection_pool
 
+# -----------------------------------------------------
+# Global Kafka Producer (Executor당 1개)
+# -----------------------------------------------------
+_kafka_producer = None
+
+def get_kafka_producer(bootstrap_servers):
+    """
+    Executor JVM당 KafkaProducer 1개만 생성
+    """
+    global _kafka_producer
+    if _kafka_producer is None:
+        from kafka import KafkaProducer
+        _kafka_producer = KafkaProducer(
+            bootstrap_servers=bootstrap_servers,
+            linger_ms=5,
+            acks=0,   # 가장 빠름 (ephemeral-topic은 내구성 필요 없음)
+            batch_size=32768,
+            max_request_size=1048576,
+            retries=0
+        )
+    return _kafka_producer
 
 # -----------------------------------------------------
 # Logger
@@ -110,88 +131,165 @@ def ensure_table_exists(args):
     conn.close()
 
 
-# -----------------------------------------------------
-# Partition별 PostgreSQL 저장 (병렬 처리)
-# -----------------------------------------------------
-def write_partition_to_postgres(partition_iter, args):
-    """
-    각 Executor에서 실행되는 함수
-    Connection Pool에서 연결을 가져와 병렬로 저장
-    """
-    import logging
+# # -----------------------------------------------------
+# # Partition별 PostgreSQL 저장 (병렬 처리)
+# # -----------------------------------------------------
+# def write_partition_to_postgres(partition_iter, args):
+#     """
+#     각 Executor에서 실행되는 함수
+#     Connection Pool에서 연결을 가져와 병렬로 저장
+#     """
+#     import logging
     
-    # Executor 로깅 설정
+#     # Executor 로깅 설정
+#     logger = logging.getLogger("executor")
+#     logger.setLevel(logging.INFO)
+#     if not logger.handlers:
+#         handler = logging.StreamHandler()
+#         handler.setFormatter(logging.Formatter("%(asctime)s [EXECUTOR] %(message)s"))
+#         logger.addHandler(handler)
+    
+#     conn = None
+#     try:
+#         # Connection Pool에서 연결 가져오기
+#         pool = get_connection_pool(args)
+#         conn = pool.getconn()
+#         cur = conn.cursor()
+        
+#         # 컬럼 이름
+#         cols = [
+#             "send_timestamp", "machine", "timestamp", "usage", "label",
+#             *[f"col_{i}" for i in range(38)]
+#         ]
+#         placeholders = ",".join(["%s"] * len(cols))
+        
+#         upsert_sql = f"""
+#         INSERT INTO {args.pg_table} ({','.join(cols)})
+#         VALUES ({placeholders})
+#         ON CONFLICT (machine, timestamp, usage)
+#         DO NOTHING;
+#         """
+        
+#         batch_records = []
+#         BATCH_SIZE = 500
+#         total_rows = 0
+        
+#         for row in partition_iter:
+#             record = [
+#                 row.send_timestamp,
+#                 row.machine,
+#                 row.timestamp,
+#                 row.usage,
+#                 row.label
+#             ]
+#             for i in range(38):
+#                 record.append(getattr(row, f"col_{i}"))
+            
+#             batch_records.append(tuple(record))
+            
+#             # 배치 단위로 커밋
+#             if len(batch_records) >= BATCH_SIZE:
+#                 execute_batch(cur, upsert_sql, batch_records, page_size=BATCH_SIZE)
+#                 conn.commit()
+#                 total_rows += len(batch_records)
+#                 batch_records.clear()
+        
+#         # 남은 레코드 처리
+#         if batch_records:
+#             execute_batch(cur, upsert_sql, batch_records, page_size=len(batch_records))
+#             conn.commit()
+#             total_rows += len(batch_records)
+        
+#         cur.close()
+#         logger.info(f"Partition 저장 완료: {total_rows} rows")
+        
+#     except Exception as e:
+#         logger.error(f"Partition 저장 실패: {e}")
+#         if conn:
+#             conn.rollback()
+#         raise
+#     finally:
+#         # Connection Pool에 연결 반환
+#         if conn:
+#             pool = get_connection_pool(args)
+#             pool.putconn(conn)
+
+def write_partition_to_postgres(partition_iter, args):
+    import logging    
     logger = logging.getLogger("executor")
     logger.setLevel(logging.INFO)
-    if not logger.handlers:
-        handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(asctime)s [EXECUTOR] %(message)s"))
-        logger.addHandler(handler)
-    
-    conn = None
-    try:
-        # Connection Pool에서 연결 가져오기
-        pool = get_connection_pool(args)
-        conn = pool.getconn()
-        cur = conn.cursor()
-        
-        # 컬럼 이름
-        cols = [
-            "send_timestamp", "machine", "timestamp", "usage", "label",
-            *[f"col_{i}" for i in range(38)]
+
+    # Connection pool
+    pool = get_connection_pool(args)
+    conn = pool.getconn()
+    cur = conn.cursor()
+
+    # Kafka Producer (executor 싱글톤)
+    producer = get_kafka_producer(args.kafka_bootstrap)
+    eph_topic = args.eph_topic.encode()
+
+    cols = [
+        "send_timestamp", "machine", "timestamp", "usage", "label",
+        *[f"col_{i}" for i in range(38)]
+    ]
+    placeholders = ",".join(["%s"] * len(cols))
+
+    upsert_sql = f"""
+    INSERT INTO {args.pg_table} ({','.join(cols)})
+    VALUES ({placeholders})
+    ON CONFLICT (machine, timestamp, usage)
+    DO NOTHING;
+    """
+
+    batch_records = []
+    BATCH_SIZE = 500
+    total_rows = 0
+
+    for row in partition_iter:
+        # ---------------------------
+        # PostgreSQL용 레코드 준비
+        # ---------------------------
+        record = [
+            row.send_timestamp,
+            row.machine,
+            row.timestamp,
+            row.usage,
+            row.label
         ]
-        placeholders = ",".join(["%s"] * len(cols))
-        
-        upsert_sql = f"""
-        INSERT INTO {args.pg_table} ({','.join(cols)})
-        VALUES ({placeholders})
-        ON CONFLICT (machine, timestamp, usage)
-        DO NOTHING;
-        """
-        
-        batch_records = []
-        BATCH_SIZE = 500
-        total_rows = 0
-        
-        for row in partition_iter:
-            record = [
-                row.send_timestamp,
-                row.machine,
-                row.timestamp,
-                row.usage,
-                row.label
-            ]
-            for i in range(38):
-                record.append(getattr(row, f"col_{i}"))
-            
-            batch_records.append(tuple(record))
-            
-            # 배치 단위로 커밋
-            if len(batch_records) >= BATCH_SIZE:
-                execute_batch(cur, upsert_sql, batch_records, page_size=BATCH_SIZE)
-                conn.commit()
-                total_rows += len(batch_records)
-                batch_records.clear()
-        
-        # 남은 레코드 처리
-        if batch_records:
-            execute_batch(cur, upsert_sql, batch_records, page_size=len(batch_records))
+        for i in range(38):
+            record.append(getattr(row, f"col_{i}"))
+
+        batch_records.append(tuple(record))
+
+        # ---------------------------
+        # Kafka dummy event push
+        # ---------------------------
+        # 1 byte payload = minimal overhead
+        producer.send(
+            eph_topic,
+            b"1",                         # 단 1 byte = 가장 빠름
+            partition=None                # Kafka가 자동 라우팅
+        )
+
+        # ---------------------------
+        # PostgreSQL batch commit
+        # ---------------------------
+        if len(batch_records) >= BATCH_SIZE:
+            execute_batch(cur, upsert_sql, batch_records, page_size=BATCH_SIZE)
             conn.commit()
             total_rows += len(batch_records)
-        
-        cur.close()
-        logger.info(f"Partition 저장 완료: {total_rows} rows")
-        
-    except Exception as e:
-        logger.error(f"Partition 저장 실패: {e}")
-        if conn:
-            conn.rollback()
-        raise
-    finally:
-        # Connection Pool에 연결 반환
-        if conn:
-            pool = get_connection_pool(args)
-            pool.putconn(conn)
+            batch_records.clear()
+
+    # 남은 레코드 처리
+    if batch_records:
+        execute_batch(cur, upsert_sql, batch_records, page_size=len(batch_records))
+        conn.commit()
+        total_rows += len(batch_records)
+
+    cur.close()
+    pool.putconn(conn)
+
+    logger.info(f"Partition 저장 완료: {total_rows} rows")
 
 
 # -----------------------------------------------------
@@ -227,10 +325,11 @@ def parse_args():
     parser.add_argument("--pg-db", default=os.getenv("PG_DB", "postgres"))
     parser.add_argument("--pg-user", default=os.getenv("PG_USER", "postgres"))
     parser.add_argument("--pg-pass", default=os.getenv("PG_PASS", "postgres"))
-    parser.add_argument("--pg-table", default=os.getenv("PG_TABLE", "smd_data_lake"))
+    parser.add_argument("--pg-table", default=os.getenv("PG_TABLE", "datalake_table"))
 
     parser.add_argument("--kafka-bootstrap", default=os.getenv("KAFKA_BOOTSTRAP", "kafka.kafka.svc.cluster.local:9092"))
-    parser.add_argument("--topic", default=os.getenv("KAFKA_TOPIC", "server-machine-usage"))
+    parser.add_argument("--topic", default=os.getenv("KAFKA_TOPIC", "realtime-topic"))
+    parser.add_argument("--eph-topic", default=os.getenv("KAFKA_EPHEMERAL_TOPIC", "realtime-eph-topic"))
 
     parser.add_argument("--checkpoint-location", default="/tmp/spark-checkpoint")
     parser.add_argument("--trigger-interval", default="10 seconds", help="마이크로배치 간격")
