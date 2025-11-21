@@ -364,6 +364,8 @@ def process_batch(batch_df, batch_id, args, logger):
         # 🔥 Driver에서 eph-topic으로 row_count 만큼 offset 갱신
         # ---------------------------
         from kafka import KafkaConsumer, TopicPartition
+        from kafka.structs import OffsetAndMetadata
+
         consumer = KafkaConsumer(
             group_id = args.eph_topic,
             bootstrap_servers=args.kafka_bootstrap,
@@ -371,11 +373,15 @@ def process_batch(batch_df, batch_id, args, logger):
         )
         tp = TopicPartition(args.eph_topic, 0)
         consumer.assign([tp])
-        # 메시지가 없어도 commit 가능
+
+        current = consumer.position(tp)
+        new_offset = current + row_count
+        
         consumer.commit({
-            tp: row_count
+            tp: OffsetAndMetadata(new_offset, None)
         })
-        logger.info(f"[Batch {batch_id}] 처리 완료 → eph-topic에 {row_count} 건 offset 갱신 완료")
+
+        logger.info(f"[Batch {batch_id}] eph-topic offset {new_offset} 로 commit 완료")
 
 
 # -----------------------------------------------------
