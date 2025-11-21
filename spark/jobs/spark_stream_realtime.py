@@ -377,7 +377,7 @@ def parse_args():
 
     parser.add_argument("--kafka-bootstrap", default=os.getenv("KAFKA_BOOTSTRAP", "kafka.kafka.svc.cluster.local:9092"))
     parser.add_argument("--topic", default=os.getenv("KAFKA_TOPIC", "realtime-topic"))
-    parser.add_argument("--eph-topic", default=os.getenv("KAFKA_EPHEMERAL_TOPIC", "realtime-eph-topic"))
+    parser.add_argument("--eph-topic", default=os.getenv("KAFKA_EPHEMERAL_TOPIC", "None"))
 
     parser.add_argument("--checkpoint-location", default="/tmp/spark-checkpoint")
     parser.add_argument("--trigger-interval", default="10 seconds", help="마이크로배치 간격")
@@ -401,7 +401,7 @@ def main():
     logger.info(f"Target Table: {args.pg_table}")
     logger.info("=" * 60)
 
-    if args.eph_topic is not "None":
+    if args.eph_topic != "None":
         # ----------------------------
         # Ephemeral Topic 생성
         # ----------------------------

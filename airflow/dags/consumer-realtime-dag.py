@@ -29,7 +29,7 @@ with DAG(
         ),
         "eph_topic": Param(
             default="realtime-eph-topic",
-            description="String type input"
+            description="Type None to disable the creation of eph_topic"
         ),
         "table": Param(
             default="datalake_table",
