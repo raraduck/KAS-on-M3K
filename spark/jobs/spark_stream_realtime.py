@@ -25,8 +25,8 @@ def create_ephemeral_topic(bootstrap_servers, topic_name):
 
     topic = NewTopic(
         name=topic_name,
-        num_partitions=16,               # ✔ 가장 가벼운 설정
-        replication_factor=1,           # ✔ 빠름
+        num_partitions=1,               # ✔ 가장 가벼운 설정
+        replication_factor=3,           # ✔ 빠름
         topic_configs={
             "retention.ms": "300000",           # 5분
             "segment.bytes": "1048576",         # 1MB
@@ -349,17 +349,33 @@ def process_batch(batch_df, batch_id, args, logger):
         # 🔥 Driver에서 eph-topic으로 row_count 만큼 send() 전송
         # ---------------------------
         # producer = get_kafka_producer(args.kafka_bootstrap)
-        for _ in range(row_count):
-            # producer.send(args.eph_topic, b"1", partition=None)
+        # for _ in range(row_count):
+        #     # producer.send(args.eph_topic, b"1", partition=None)
 
-            future = _kafka_producer.send(args.eph_topic, b"")
-            try:
-                future.get(timeout=5)
-            except Exception as e:
-                logger.error(f"🚨 eph-topic send 실패: {e}")
+        #     future = _kafka_producer.send(args.eph_topic, b"")
+        #     try:
+        #         future.get(timeout=5)
+        #     except Exception as e:
+        #         logger.error(f"🚨 eph-topic send 실패: {e}")
 
-        _kafka_producer.flush(timeout=10)
-        logger.info(f"[Batch {batch_id}] 처리 완료 → eph-topic에 {row_count} 건 push 완료")
+        # _kafka_producer.flush(timeout=10)
+
+        # ---------------------------
+        # 🔥 Driver에서 eph-topic으로 row_count 만큼 offset 갱신
+        # ---------------------------
+        from kafka import KafkaConsumer, TopicPartition
+        consumer = KafkaConsumer(
+            group_id = args.eph_topic,
+            bootstrap_servers=args.kafka_bootstrap,
+            enable_auto_commit=False,
+        )
+        tp = TopicPartition(args.eph_topic, 0)
+        consumer.assign([tp])
+        # 메시지가 없어도 commit 가능
+        consumer.commit({
+            tp: row_count
+        })
+        logger.info(f"[Batch {batch_id}] 처리 완료 → eph-topic에 {row_count} 건 offset 갱신 완료")
 
 
 # -----------------------------------------------------
