@@ -241,6 +241,88 @@ def write_partition_to_postgres(partition_iter, args):
 
 
 
+
+# def write_partition_to_postgres(partition_iter, args):
+#     import logging    
+#     logger = logging.getLogger("executor")
+#     logger.setLevel(logging.INFO)
+
+#     # Connection pool
+#     pool = get_connection_pool(args)
+#     conn = pool.getconn()
+#     cur = conn.cursor()
+
+#     # Kafka Producer (executor 싱글톤)
+#     producer = get_kafka_producer(args.kafka_bootstrap)
+#     eph_topic = args.eph_topic
+
+#     cols = [
+#         "send_timestamp", "machine", "timestamp", "usage", "label",
+#         *[f"col_{i}" for i in range(38)]
+#     ]
+#     placeholders = ",".join(["%s"] * len(cols))
+
+#     upsert_sql = f"""
+#     INSERT INTO {args.pg_table} ({','.join(cols)})
+#     VALUES ({placeholders})
+#     ON CONFLICT (machine, timestamp, usage)
+#     DO NOTHING;
+#     """
+
+#     batch_records = []
+#     BATCH_SIZE = 500
+#     total_rows = 0
+
+#     for row in partition_iter:
+#         # ---------------------------
+#         # PostgreSQL용 레코드 준비
+#         # ---------------------------
+#         record = [
+#             row.send_timestamp,
+#             row.machine,
+#             row.timestamp,
+#             row.usage,
+#             row.label
+#         ]
+#         for i in range(38):
+#             record.append(getattr(row, f"col_{i}"))
+
+#         batch_records.append(tuple(record))
+
+#         # ---------------------------
+#         # Kafka dummy event push
+#         # ---------------------------
+#         # 1 byte payload = minimal overhead
+#         producer.send(
+#             eph_topic,
+#             b"1",                         # 단 1 byte = 가장 빠름
+#             partition=None                # Kafka가 자동 라우팅
+#         )
+
+#         # ---------------------------
+#         # PostgreSQL batch commit
+#         # ---------------------------
+#         if len(batch_records) >= BATCH_SIZE:
+#             execute_batch(cur, upsert_sql, batch_records, page_size=BATCH_SIZE)
+#             conn.commit()
+#             total_rows += len(batch_records)
+#             batch_records.clear()
+#             producer.flush()  # 배치마다 flush
+
+#     # 남은 레코드 처리
+#     if batch_records:
+#         execute_batch(cur, upsert_sql, batch_records, page_size=len(batch_records))
+#         conn.commit()
+#         total_rows += len(batch_records)
+
+#     producer.flush()  # 파티션 처리 완료 시 반드시 flush
+    
+#     cur.close()
+#     pool.putconn(conn)
+
+#     logger.info(f"Partition 저장 완료: {total_rows} rows")
+
+
 # -----------------------------------------------------
 # foreachBatch 핸들러
 # -----------------------------------------------------
@@ -277,6 +359,33 @@ def process_batch(batch_df, batch_id, args, logger):
         _kafka_producer.flush()
 
         logger.info(f"[Batch {batch_id}] batch rows {row_count} 완료")
+
+        # # ---------------------------
+        # # 🔥 Driver에서 eph-topic으로 row_count 만큼 offset 갱신
+        # # ---------------------------
+        # from kafka import KafkaConsumer, TopicPartition
+        # from kafka.structs import OffsetAndMetadata
+
+        # consumer = KafkaConsumer(
+        #     group_id = f"{args.eph_topic}-group",
+        #     bootstrap_servers=args.kafka_bootstrap,
+        #     enable_auto_commit=False,
+        # )
+        # tp = TopicPartition(args.eph_topic, 0)
+        # consumer.assign([tp])
+
+        # # 🎯 반드시 poll() 해야 position/commit 가능
+        # consumer.poll(timeout_ms=1)
+
+        # current = consumer.position(tp)
+
+        # new_offset = current + row_count
+        
+        # consumer.commit({
+        #     tp: OffsetAndMetadata(new_offset, None)
+        # })
+
+        # logger.info(f"[Batch {batch_id}] eph-topic offset {new_offset} 로 commit 완료")
 
 
 # -----------------------------------------------------
@@ -368,11 +477,9 @@ def main():
         .option("kafka.bootstrap.servers", args.kafka_bootstrap) \
         .option("subscribe", args.topic) \
         .option("startingOffsets", "latest") \
-        .option("maxOffsetsPerTrigger", "100000") \
+        .option("maxOffsetsPerTrigger", "10000") \
         .option("failOnDataLoss", "false") \
         .load()
-        # .option("maxOffsetsPerTrigger", "10000") \
-        # .option("maxBytesPerTrigger", "268435456") \ # 256MB
 
     # JSON 파싱 및 타입 변환
     json_df = df.selectExpr("CAST(value AS STRING) as json_str") \

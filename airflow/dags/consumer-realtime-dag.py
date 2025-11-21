@@ -25,20 +25,20 @@ with DAG(
     params={
         "topic": Param(
             default="realtime-topic",
-            description="String type input"
+            description="Name of topic to read streaming"
         ),
         "eph_topic": Param(
-            default="realtime-eph-topic",
-            description="Type None to disable the creation of eph_topic"
+            default="realtime-monitor",
+            description="Name of light-weight topic for batch-wise logging for spark streaming (Type None to disable)"
         ),
         "table": Param(
             default="datalake_table",
-            description="dash(-) must be replaced to underline(_)"
+            description="Name of DB Table: dash(-) must be replaced to underline(_)"
         ),
         "executor": Param(
             default="2",
             # type="integer",
-            description="Num executors"
+            description="Num of executors"
         ),
     },
 ) as dag:
