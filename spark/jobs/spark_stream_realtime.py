@@ -76,22 +76,16 @@ def get_connection_pool(args):
 _kafka_producer = None
 
 def get_kafka_producer(bootstrap_servers):
-    """
-    Executor JVM당 KafkaProducer 1개만 생성
-    """
-    # global _kafka_producer
-    if producer is None:
-        from kafka import KafkaProducer
-        producer = KafkaProducer(
-            bootstrap_servers=bootstrap_servers,
-            linger_ms=5,
-            acks=1,   # 가장 빠름 (ephemeral-topic은 내구성 필요 없음)
-            retries=3,
-            max_in_flight_requests_per_connection=5,
-            # batch_size=32768,
-            # max_request_size=1048576,
-        )
-    return producer
+    from kafka import KafkaProducer
+    return KafkaProducer(
+        bootstrap_servers=bootstrap_servers,
+        linger_ms=5,
+        acks=1,   # 가장 빠름 (ephemeral-topic은 내구성 필요 없음)
+        retries=3,
+        max_in_flight_requests_per_connection=5,
+        # batch_size=32768,
+        # max_request_size=1048576,
+    )
 
 # -----------------------------------------------------
 # Logger
