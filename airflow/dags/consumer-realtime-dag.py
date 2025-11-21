@@ -13,7 +13,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id='Consumer_realtime_stream',
+    dag_id='Consumer_realtime',
     default_args=default_args,
     schedule=None,
     catchup=False,

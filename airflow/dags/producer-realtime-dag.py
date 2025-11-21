@@ -13,7 +13,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id='Producer_realtime_parallel',
+    dag_id='Producer_realtime',
     default_args=default_args,
     schedule=None,
     catchup=False,
