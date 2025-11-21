@@ -342,22 +342,24 @@ def process_batch(batch_df, batch_id, args, logger):
     # Kafka partition 그대로 사용 (shuffle 없음, 최고 성능)
     batch_df.foreachPartition(lambda partition: write_partition_to_postgres(partition, args))
     
-    # ---------------------------
-    # 🔥 Driver에서 eph-topic으로 row_count 만큼 send() 전송
-    # ---------------------------
-    # producer = get_kafka_producer(args.kafka_bootstrap)
-    for _ in range(row_count):
-        # producer.send(args.eph_topic, b"1", partition=None)
+    if _kafka_producer is None:
+        logger.info(f"[Batch {batch_id}] 처리 완료")
+    else:
+        # ---------------------------
+        # 🔥 Driver에서 eph-topic으로 row_count 만큼 send() 전송
+        # ---------------------------
+        # producer = get_kafka_producer(args.kafka_bootstrap)
+        for _ in range(row_count):
+            # producer.send(args.eph_topic, b"1", partition=None)
 
-        future = _kafka_producer.send(args.eph_topic, b"1")
-        try:
-            future.get(timeout=5)
-        except Exception as e:
-            logger.error(f"🚨 eph-topic send 실패: {e}")
+            future = _kafka_producer.send(args.eph_topic, b"")
+            try:
+                future.get(timeout=5)
+            except Exception as e:
+                logger.error(f"🚨 eph-topic send 실패: {e}")
 
-    _kafka_producer.flush(timeout=10)
-    logger.info(f"[Batch {batch_id}] 처리 완료 → eph-topic에 {row_count} 건 push 완료")
-    # logger.info(f"[Batch {batch_id}] 처리 완료")
+        _kafka_producer.flush(timeout=10)
+        logger.info(f"[Batch {batch_id}] 처리 완료 → eph-topic에 {row_count} 건 push 완료")
 
 
 # -----------------------------------------------------
@@ -399,20 +401,22 @@ def main():
     logger.info(f"Target Table: {args.pg_table}")
     logger.info("=" * 60)
 
-    # ----------------------------
-    # Ephemeral Topic 생성
-    # ----------------------------
-    logger.info(f"🟦 Ephemeral topic 생성 시도: {args.eph_topic}")
+    if args.eph_topic is not "None":
+        # ----------------------------
+        # Ephemeral Topic 생성
+        # ----------------------------
+        logger.info("=" * 60)
+        logger.info(f"🟦 Ephemeral topic 생성 시도: {args.eph_topic}")
 
-    create_ephemeral_topic(
-        bootstrap_servers=args.kafka_bootstrap,
-        topic_name=args.eph_topic
-    )
+        create_ephemeral_topic(
+            bootstrap_servers=args.kafka_bootstrap,
+            topic_name=args.eph_topic
+        )
 
-    _kafka_producer = get_kafka_producer(args.kafka_bootstrap)
+        _kafka_producer = get_kafka_producer(args.kafka_bootstrap)
 
-    logger.info(f"🟩 Ephemeral topic 준비 완료: {args.eph_topic}")
-    logger.info("=" * 60)
+        logger.info(f"🟩 Ephemeral topic 준비 완료: {args.eph_topic}")
+        logger.info("=" * 60)
 
     # ----------------------------
     # 테이블 생성 (Driver에서 1회만)
