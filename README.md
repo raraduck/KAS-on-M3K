@@ -347,3 +347,7 @@ print(feature_importance.head(10))
 ```
 - [ ] VAE (OmniAD 알고리즘 테스트, nvidia and pytorch container)
 - [ ] consumer 에서 테이블 생성할때 auto pid increment 하지 말고 (mahcine_id, timestamp, usage) 로 설정해서 upsert
+
+
+## Load test capture
+<img src="./SysAD_load_test_prometeus.png" width="800">
