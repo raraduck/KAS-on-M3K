@@ -85,10 +85,11 @@ def get_kafka_producer(bootstrap_servers):
         _kafka_producer = KafkaProducer(
             bootstrap_servers=bootstrap_servers,
             linger_ms=5,
-            acks=0,   # 가장 빠름 (ephemeral-topic은 내구성 필요 없음)
-            batch_size=32768,
-            max_request_size=1048576,
-            retries=0
+            acks=1,   # 가장 빠름 (ephemeral-topic은 내구성 필요 없음)
+            retries=3,
+            max_in_flight_requests_per_connection=5,
+            # batch_size=32768,
+            # max_request_size=1048576,
         )
     return _kafka_producer
 
@@ -351,9 +352,15 @@ def process_batch(batch_df, batch_id, args, logger):
     # ---------------------------
     producer = get_kafka_producer(args.kafka_bootstrap)
     for _ in range(row_count):
-        producer.send(args.eph_topic, b"1", partition=None)
+        # producer.send(args.eph_topic, b"1", partition=None)
 
-    producer.flush()
+        future = producer.send(args.eph_topic, b"1")
+        try:
+            future.get(timeout=5)
+        except Exception as e:
+            logger.error(f"🚨 eph-topic send 실패: {e}")
+
+    producer.flush(timeout=10)
     logger.info(f"[Batch {batch_id}] 처리 완료 → eph-topic에 {row_count} 건 push 완료")
     # logger.info(f"[Batch {batch_id}] 처리 완료")
 
