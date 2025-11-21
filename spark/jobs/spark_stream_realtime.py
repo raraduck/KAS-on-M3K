@@ -358,7 +358,7 @@ def process_batch(batch_df, batch_id, args, logger):
         _kafka_producer.send(args.eph_topic, msg)
         _kafka_producer.flush()
 
-        logger.info(f"[Batch {batch_id}] eph-topic offset {row_count} 완료")
+        logger.info(f"[Batch {batch_id}] batch rows {row_count} 완료")
 
         # # ---------------------------
         # # 🔥 Driver에서 eph-topic으로 row_count 만큼 offset 갱신
