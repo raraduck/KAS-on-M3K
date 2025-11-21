@@ -332,6 +332,7 @@ def write_partition_to_postgres(partition_iter, args):
 # foreachBatch 핸들러
 # -----------------------------------------------------
 def process_batch(batch_df, batch_id, args, logger):
+    global _kafka_producer
     """
     각 마이크로배치마다 실행
     Kafka partition을 그대로 사용하여 최적 성능 달성
@@ -350,17 +351,17 @@ def process_batch(batch_df, batch_id, args, logger):
     # ---------------------------
     # 🔥 Driver에서 eph-topic으로 row_count 만큼 send() 전송
     # ---------------------------
-    producer = get_kafka_producer(args.kafka_bootstrap)
+    # producer = get_kafka_producer(args.kafka_bootstrap)
     for _ in range(row_count):
         # producer.send(args.eph_topic, b"1", partition=None)
 
-        future = producer.send(args.eph_topic, b"1")
+        future = _kafka_producer.send(args.eph_topic, b"1")
         try:
             future.get(timeout=5)
         except Exception as e:
             logger.error(f"🚨 eph-topic send 실패: {e}")
 
-    producer.flush(timeout=10)
+    _kafka_producer.flush(timeout=10)
     logger.info(f"[Batch {batch_id}] 처리 완료 → eph-topic에 {row_count} 건 push 완료")
     # logger.info(f"[Batch {batch_id}] 처리 완료")
 
@@ -412,6 +413,7 @@ def main():
         bootstrap_servers=args.kafka_bootstrap,
         topic_name=args.eph_topic
     )
+    producer = get_kafka_producer(args.kafka_bootstrap)
 
     logger.info(f"🟩 Ephemeral topic 준비 완료: {args.eph_topic}")
     logger.info("=" * 60)
