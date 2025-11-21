@@ -243,21 +243,44 @@ def ensure_table_exists(args):
 #             pool = get_connection_pool(args)
 #             pool.putconn(conn)
 
+
+
+
 def write_partition_to_postgres(partition_iter, args):
     import logging    
     logger = logging.getLogger("executor")
     logger.setLevel(logging.INFO)
 
+    # Connection pool
     pool = get_connection_pool(args)
     conn = pool.getconn()
     cur = conn.cursor()
 
+    # Kafka Producer (executor 싱글톤)
     producer = get_kafka_producer(args.kafka_bootstrap)
     eph_topic = args.eph_topic
 
-    # ... (중간 코드 동일) ...
+    cols = [
+        "send_timestamp", "machine", "timestamp", "usage", "label",
+        *[f"col_{i}" for i in range(38)]
+    ]
+    placeholders = ",".join(["%s"] * len(cols))
+
+    upsert_sql = f"""
+    INSERT INTO {args.pg_table} ({','.join(cols)})
+    VALUES ({placeholders})
+    ON CONFLICT (machine, timestamp, usage)
+    DO NOTHING;
+    """
+
+    batch_records = []
+    BATCH_SIZE = 500
+    total_rows = 0
 
     for row in partition_iter:
+        # ---------------------------
+        # PostgreSQL용 레코드 준비
+        # ---------------------------
         record = [
             row.send_timestamp,
             row.machine,
@@ -270,13 +293,19 @@ def write_partition_to_postgres(partition_iter, args):
 
         batch_records.append(tuple(record))
 
-        # 빈 메시지 대신 최소한의 내용 전송
+        # ---------------------------
+        # Kafka dummy event push
+        # ---------------------------
+        # 1 byte payload = minimal overhead
         producer.send(
             eph_topic,
-            b"1",  # 최소 1byte로 변경
-            partition=None
+            b"1",                         # 단 1 byte = 가장 빠름
+            partition=None                # Kafka가 자동 라우팅
         )
 
+        # ---------------------------
+        # PostgreSQL batch commit
+        # ---------------------------
         if len(batch_records) >= BATCH_SIZE:
             execute_batch(cur, upsert_sql, batch_records, page_size=BATCH_SIZE)
             conn.commit()
@@ -284,6 +313,7 @@ def write_partition_to_postgres(partition_iter, args):
             batch_records.clear()
             producer.flush()  # 배치마다 flush
 
+    # 남은 레코드 처리
     if batch_records:
         execute_batch(cur, upsert_sql, batch_records, page_size=len(batch_records))
         conn.commit()
