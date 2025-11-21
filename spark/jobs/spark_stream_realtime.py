@@ -25,7 +25,7 @@ def create_ephemeral_topic(bootstrap_servers, topic_name):
 
     topic = NewTopic(
         name=topic_name,
-        num_partitions=1,               # ✔ 가장 가벼운 설정
+        num_partitions=16,               # ✔ 가장 가벼운 설정
         replication_factor=1,           # ✔ 빠름
         topic_configs={
             "retention.ms": "300000",           # 5분
@@ -79,10 +79,10 @@ def get_kafka_producer(bootstrap_servers):
     """
     Executor JVM당 KafkaProducer 1개만 생성
     """
-    global _kafka_producer
-    if _kafka_producer is None:
+    # global _kafka_producer
+    if producer is None:
         from kafka import KafkaProducer
-        _kafka_producer = KafkaProducer(
+        producer = KafkaProducer(
             bootstrap_servers=bootstrap_servers,
             linger_ms=5,
             acks=1,   # 가장 빠름 (ephemeral-topic은 내구성 필요 없음)
@@ -91,7 +91,7 @@ def get_kafka_producer(bootstrap_servers):
             # batch_size=32768,
             # max_request_size=1048576,
         )
-    return _kafka_producer
+    return producer
 
 # -----------------------------------------------------
 # Logger
@@ -393,6 +393,7 @@ def parse_args():
 # Main
 # -----------------------------------------------------
 def main():
+    global _kafka_producer
     logger = setup_logger()
     args = parse_args()
 
@@ -413,7 +414,8 @@ def main():
         bootstrap_servers=args.kafka_bootstrap,
         topic_name=args.eph_topic
     )
-    producer = get_kafka_producer(args.kafka_bootstrap)
+
+    _kafka_producer = get_kafka_producer(args.kafka_bootstrap)
 
     logger.info(f"🟩 Ephemeral topic 준비 완료: {args.eph_topic}")
     logger.info("=" * 60)
