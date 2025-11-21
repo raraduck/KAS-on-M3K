@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from kafka.admin import KafkaAdminClient, NewTopic
+from kafka.errors import TopicAlreadyExistsError
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, from_json, to_timestamp, lit
 from pyspark.sql.types import StructType, StructField, DoubleType, StringType
@@ -15,6 +17,33 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 load_dotenv("/opt/spark-data/.env")
 
+def create_ephemeral_topic(bootstrap_servers, topic_name):
+    admin_client = KafkaAdminClient(
+        bootstrap_servers=bootstrap_servers,
+        client_id='ephemeral_topic_creator'
+    )
+
+    topic = NewTopic(
+        name=topic_name,
+        num_partitions=1,               # ✔ 가장 가벼운 설정
+        replication_factor=1,           # ✔ 빠름
+        topic_configs={
+            "retention.ms": "300000",           # 5분
+            "segment.bytes": "1048576",         # 1MB
+            "cleanup.policy": "delete",
+            "min.insync.replicas": "1"
+            # "compression.type": "gzip",         # 고효율 압축이지만 여기서는 오버헤드가 되므로 삭제
+        }
+    )
+
+    try:
+        admin_client.create_topics([topic])
+        print(f"✅ Ephemeral topic created: {topic_name}")
+    except TopicAlreadyExistsError:
+        print(f"⚠️ Topic already exists: {topic_name}")
+    finally:
+        admin_client.close()
+        
 # -----------------------------------------------------
 # Global Connection Pool (Executor당 1개씩 생성됨)
 # -----------------------------------------------------
@@ -226,7 +255,7 @@ def write_partition_to_postgres(partition_iter, args):
 
     # Kafka Producer (executor 싱글톤)
     producer = get_kafka_producer(args.kafka_bootstrap)
-    eph_topic = args.eph_topic.encode()
+    eph_topic = args.eph_topic
 
     cols = [
         "send_timestamp", "machine", "timestamp", "usage", "label",
@@ -264,10 +293,10 @@ def write_partition_to_postgres(partition_iter, args):
         # ---------------------------
         # Kafka dummy event push
         # ---------------------------
-        # 1 byte payload = minimal overhead
+        # 0 byte payload = minimal overhead
         producer.send(
             eph_topic,
-            b"1",                         # 단 1 byte = 가장 빠름
+            b"",                         # 단 0 byte = 가장 빠름
             partition=None                # Kafka가 자동 라우팅
         )
 
@@ -346,13 +375,29 @@ def main():
 
     logger.info("=" * 60)
     logger.info("Spark Streaming with Connection Pool 시작")
-    logger.info(f"Kafka: {args.kafka_bootstrap}")
-    logger.info(f"Topic: {args.topic}")
+    logger.info(f"Kafka Bootstrap: {args.kafka_bootstrap}")
+    logger.info(f"Input Topic: {args.topic}")
     logger.info(f"PostgreSQL: {args.pg_host}:{args.pg_port}/{args.pg_db}")
-    logger.info(f"Table: {args.pg_table}")
+    logger.info(f"Target Table: {args.pg_table}")
     logger.info("=" * 60)
 
+    # ----------------------------
+    # Ephemeral Topic 생성
+    # ----------------------------
+    logger.info(f"🟦 Ephemeral topic 생성 시도: {args.eph_topic}")
+
+    create_ephemeral_topic(
+        bootstrap_servers=args.kafka_bootstrap,
+        topic_name=args.eph_topic
+    )
+
+    logger.info(f"🟩 Ephemeral topic 준비 완료: {args.eph_topic}")
+    logger.info("=" * 60)
+
+    # ----------------------------
     # 테이블 생성 (Driver에서 1회만)
+    # ----------------------------
+    
     ensure_table_exists(args)
     logger.info("테이블 생성/확인 완료")
 
