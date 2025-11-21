@@ -374,7 +374,11 @@ def process_batch(batch_df, batch_id, args, logger):
         tp = TopicPartition(args.eph_topic, 0)
         consumer.assign([tp])
 
+        # 🎯 반드시 poll() 해야 position/commit 가능
+        consumer.poll(timeout_ms=1)
+        
         current = consumer.position(tp)
+
         new_offset = current + row_count
         
         consumer.commit({
