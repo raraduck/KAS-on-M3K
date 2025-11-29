@@ -23,10 +23,6 @@ with DAG(
     # --------------------------
     # Airflow 3.x: Params는 여기에 선언
     params={
-        "topic": Param(
-            default="realtime-topic",
-            description="Name of topic to read streaming"
-        ),
         "eph_topic": Param(
             default="realtime-monitor",
             description="Name of light-weight topic for batch-wise logging for spark streaming (Type None to disable)"
