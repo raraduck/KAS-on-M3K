@@ -7,6 +7,7 @@ import json
 import argparse
 import logging
 from datetime import datetime, timedelta
+import pytz
 
 from dotenv import load_dotenv
 load_dotenv("/opt/spark-data/.env")
@@ -294,7 +295,10 @@ def make_batch_handler(spark, args, logger):
         logger.info("=" * 60)
         logger.info(f"[Batch {batch_id}] 시작")
 
-        current_ts = datetime.utcnow()
+        kst = pytz.timezone("Asia/Seoul")
+
+        current_ts = datetime.now(tz=kst)
+        # current_ts = datetime.utcnow()
         last_ts = get_last_checkpoint(args, logger)
 
         # 1) PostgreSQL에서 증분 데이터 로드
