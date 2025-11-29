@@ -131,7 +131,7 @@ def try_parse_number(key, value):
         return to_str(value) # 반드시 문자열 유지
     
     if key in ('label'):
-        return int(value) # 반드시 문자열 유지
+        return int(float(value)) # 반드시 문자열 유지
 
     if key in {f"col_{i}" for i in range(38)}:
         return float(value)  # 숫자 변환 필요 없는 컬럼
