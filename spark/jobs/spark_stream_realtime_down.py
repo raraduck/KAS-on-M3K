@@ -329,6 +329,31 @@ def make_batch_handler(spark, args, logger):
         #     .option("topic", args.eph_topic)
         #     .save())
 
+        # 원하는 zscore 고정값
+        fixed_zscore = 1.99   # 필요하면 args에서 받아도 됨
+
+        # struct 로 필요한 필드만 구성
+        json_df = df.select(
+            F.col("send_timestamp").cast("string"),
+            F.col("machine"),
+            F.col("timestamp").cast("string"),   # JSON 형태에 맞춰 string 변환 권장
+            F.lit(fixed_zscore).alias("zscore")
+        )
+
+        # JSON 직렬화
+        kafka_df = json_df.selectExpr(
+            "machine AS key",                     # Kafka key
+            "to_json(struct(*)) AS value"         # 원하는 JSON
+        )
+
+        # Kafka write
+        (kafka_df.write
+            .format("kafka")
+            .option("kafka.bootstrap.servers", args.kafka_bootstrap)
+            .option("topic", args.eph_topic)
+            .save()
+        )
+
         logger.info(f"[Batch {batch_id}] anomaly 결과 Kafka 전송 완료")
 
         # 4) 체크포인트 갱신 (이번에 처리한 send_timestamp 최대값 기준)
