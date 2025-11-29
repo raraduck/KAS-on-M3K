@@ -438,7 +438,8 @@ def main():
         SparkSession.builder
         .appName("DownstreamPCAAnomalyDetection")
         .config("spark.sql.session.timeZone", "Asia/Seoul")
-        .config("spark.sql.session.timeZone", "UTC")
+        # .config("spark.sql.session.timeZone", "UTC")
+        .config("spark.sql.session.timeZone", "Asia/Seoul")
         .getOrCreate()
     )
     spark.sparkContext.setLogLevel("ERROR")
