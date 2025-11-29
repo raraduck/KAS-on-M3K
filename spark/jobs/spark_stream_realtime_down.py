@@ -169,6 +169,7 @@ def load_incremental_from_postgres(spark, args, last_ts, current_ts, logger):
         .option("user", args.pg_user)
         .option("password", args.pg_pass)
         .option("driver", "org.postgresql.Driver")
+        .option("sessionInitStatement", "SET TIMEZONE TO 'Asia/Seoul'")
         # 필요하면 병렬 읽기 옵션 추가 (send_timestamp를 partitionColumn으로 쓰기 애매하면 생략)
         # .option("numPartitions", 4)
         # .option("partitionColumn", "send_timestamp")
@@ -433,6 +434,7 @@ def main():
         SparkSession.builder
         .appName("DownstreamPCAAnomalyDetection")
         .config("spark.sql.session.timeZone", "Asia/Seoul")
+        .config("spark.sql.session.timeZone", "UTC")
         .getOrCreate()
     )
     spark.sparkContext.setLogLevel("ERROR")
