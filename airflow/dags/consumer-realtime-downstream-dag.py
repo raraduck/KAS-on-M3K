@@ -44,12 +44,12 @@ with DAG(
 ) as dag:
 
     # (1) Spark Stream Upsert 실행
-    Spark_Stream_Upsert = SparkKubernetesOperator(
-        task_id="Stream_Upsert",
+    Spark_Down_Stream_Upsert = SparkKubernetesOperator(
+        task_id="Down_Stream_Upsert",
         name="spark-stream-upsert",
         in_cluster=True,              
         namespace="default",
-        application_file="template-spark-stream-realtime.yaml",
+        application_file="template-spark-stream-realtime-down.yaml",
         do_xcom_push=False,
         deferrable=False,  # 비동기 모드
         poll_interval=10,  # 상태 확인 간격
@@ -58,4 +58,4 @@ with DAG(
     )
 
     # 실행 순서: Spark stream upsert mode
-    Spark_Stream_Upsert
+    Spark_Down_Stream_Upsert
