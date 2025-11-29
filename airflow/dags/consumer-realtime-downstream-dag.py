@@ -24,7 +24,7 @@ with DAG(
     # Airflow 3.x: Params는 여기에 선언
     params={
         "eph_topic": Param(
-            default="realtime-monitor",
+            default="anomaly-topic",
             description="Name of light-weight topic for batch-wise logging for spark streaming (Type None to disable)"
         ),
         "table": Param(
