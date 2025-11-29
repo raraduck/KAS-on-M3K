@@ -8,7 +8,7 @@ import csv
 import json
 import time
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from kafka import KafkaProducer
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
@@ -119,7 +119,9 @@ def iter_all_csv_rows(machine, base_dir):
             for row in reader:
                 numeric_row = {k: try_parse_number(k, v) for k, v in row.items()}
                 numeric_row["label"] = 0.0
-                numeric_row["send_timestamp"] = datetime.now().isoformat()
+                # numeric_row["send_timestamp"] = datetime.now().isoformat()
+                KST = timezone(timedelta(hours=9))
+                numeric_row["send_timestamp"] = datetime.now(KST).isoformat()
                 numeric_row["machine"] = current_machine
                 numeric_row["usage"] = f"train"
                 yield numeric_row, current_machine # 이름도 반환

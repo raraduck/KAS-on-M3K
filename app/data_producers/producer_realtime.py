@@ -8,7 +8,7 @@ import csv
 import json
 import time
 import argparse
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from kafka import KafkaProducer
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
@@ -110,7 +110,8 @@ def iter_smd_csv_rows(machine):
                 # 각 행을 float 또는 int로 변환
                 numeric_row = {k: try_parse_number(k, v) for k, v in row.items()}
                 # CSV의 timestamp 대신 전송 시각을 덮어쓰기 (선택)
-                numeric_row["send_timestamp"] = datetime.now().isoformat()
+                KST = timezone(timedelta(hours=9))
+                numeric_row["send_timestamp"] = datetime.now(KST).isoformat()
                 numeric_row["machine"] = machine
                 numeric_row["usage"] = f"test"
                 yield numeric_row
