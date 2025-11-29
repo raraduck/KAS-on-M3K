@@ -46,7 +46,7 @@ with DAG(
     # (1) Spark Stream Upsert 실행
     Spark_Up_Stream_Upsert = SparkKubernetesOperator(
         task_id="Up_Stream_Upsert",
-        name="spark-stream-upsert",
+        name="spark-up-stream-upsert",
         in_cluster=True,              
         namespace="default",
         application_file="template-spark-stream-realtime-up.yaml",
