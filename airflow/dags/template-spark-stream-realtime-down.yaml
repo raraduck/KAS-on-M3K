@@ -37,6 +37,10 @@ spec:
     - "60 seconds"
     - "--lookback-minutes"
     - "5"
+    - "--pca-k"
+    - "4"
+    - "--p-value"
+    - "0.05"
   driver:
     cores: 1
     memory: 512m
