@@ -267,10 +267,10 @@ def run_pca_anomaly_detection(df, args, logger):
     )
 
     # 6. threshold 이상만 anomaly 로 필터링
-    anomalies = scored_df.filter(F.abs(F.col("zscore")) >= F.lit(args.z_threshold))
+    anomalies = scored_df.filter(F.abs(F.col("zscore")) >= F.lit(args.p_value))
 
     if anomalies.rdd.isEmpty():
-        logger.info(f"이번 배치에서 anomaly 없음 (threshold={args.z_threshold})")
+        logger.info(f"이번 배치에서 anomaly 없음 (threshold={args.p_value})")
         return None
 
     logger.info(f"이번 배치 anomaly 개수: {anomalies.count()}")
@@ -306,28 +306,28 @@ def make_batch_handler(spark, args, logger):
 
         logger.info(f"[Batch {batch_id}] 증분 데이터 로드: {row_count} rows")
 
-        # 2) 이상감지 수행
-        anomalies = run_pca_anomaly_detection(df, args, logger)
-        if anomalies is None:
-            # anomaly 없더라도 checkpoint는 갱신
-            max_ts = df.agg(F.max("send_timestamp")).collect()[0][0] or current_ts
-            update_checkpoint(args, logger, max_ts)
-            logger.info(f"[Batch {batch_id}] anomaly 없음, 종료")
-            return
+        # # 2) 이상감지 수행
+        # anomalies = run_pca_anomaly_detection(df, args, logger)
+        # if anomalies is None:
+        #     # anomaly 없더라도 checkpoint는 갱신
+        #     max_ts = df.agg(F.max("send_timestamp")).collect()[0][0] or current_ts
+        #     update_checkpoint(args, logger, max_ts)
+        #     logger.info(f"[Batch {batch_id}] anomaly 없음, 종료")
+        #     return
 
-        # 3) anomaly 결과를 Kafka topic 으로 write (배치 모드)
-        kafka_df = anomalies.withColumn(
-            "key", F.col("machine").cast("string")
-        ).selectExpr(
-            "CAST(key AS STRING) AS key",
-            "to_json(struct(*)) AS value"
-        )
+        # # 3) anomaly 결과를 Kafka topic 으로 write (배치 모드)
+        # kafka_df = anomalies.withColumn(
+        #     "key", F.col("machine").cast("string")
+        # ).selectExpr(
+        #     "CAST(key AS STRING) AS key",
+        #     "to_json(struct(*)) AS value"
+        # )
 
-        (kafka_df.write
-            .format("kafka")
-            .option("kafka.bootstrap.servers", args.kafka_bootstrap)
-            .option("topic", args.eph_topic)
-            .save())
+        # (kafka_df.write
+        #     .format("kafka")
+        #     .option("kafka.bootstrap.servers", args.kafka_bootstrap)
+        #     .option("topic", args.eph_topic)
+        #     .save())
 
         logger.info(f"[Batch {batch_id}] anomaly 결과 Kafka 전송 완료")
 
@@ -370,8 +370,8 @@ def parse_args():
 
     # AD 설정
     parser.add_argument("--pca-k", type=int, default=5, help="PCA 차원 수")
-    parser.add_argument("--z-threshold", type=float, default=1.96,
-                        help="|zscore| >= threshold 를 anomaly 로 간주")
+    parser.add_argument("--p-value", type=float, default=0.05,
+                        help="|pvalue| >= threshold 를 anomaly 로 간주")
 
     return parser.parse_args()
 
