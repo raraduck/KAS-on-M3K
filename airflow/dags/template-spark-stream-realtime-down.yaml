@@ -48,15 +48,15 @@ spec:
     - "csv"
   driver:
     cores: 1
-    memory: 512m
+    memory: 2g
     serviceAccount: spark-operator-spark
     volumeMounts:
       - name: data
         mountPath: /opt/spark-data
   executor:
-    cores: 1
+    cores: 2
     instances: {{ params.executor | int}}
-    memory: 512m
+    memory: 2g
 #     securityContext:
 #       runAsUser: 0
 #       runAsGroup: 0
