@@ -80,13 +80,21 @@ def main():
     logger.info(f"🔗 Connecting to PostgreSQL {jdbc_url} ...")
 
     cutoff = (datetime.now() - timedelta(days=args.days)).strftime("%Y-%m-%d %H:%M:%S")
+    # query = f"""
+    #     (SELECT *
+    #     FROM {args.pg_table}
+    #     WHERE send_timestamp >= '{cutoff}'
+    #     AND usage = 'train'
+    #     AND machine = '{args.machine}'
+    #     ) sub
+    # """
     query = f"""
         (SELECT *
         FROM {args.pg_table}
         WHERE send_timestamp >= '{cutoff}'
         AND usage = 'train'
         AND machine = '{args.machine}'
-        ) sub
+        ) AS sub
     """
 
     # 1️⃣ PostgreSQL → DataFrame
