@@ -256,26 +256,15 @@ def make_batch_handler(spark, args, logger,
             "is_anomaly", F.col("recon_error") > lit(threshold)
         )
 
-        anomaly_count = result_df.filter("is_anomaly = true").count()
+        anomaly_df = result_df.filter(F.col("is_anomaly") == True)
+        anomaly_count = anomaly_df.count()
         logger.info(f"[Batch {batch_id}] anomaly count = {anomaly_count}")
 
 
-        # --------------------------------------------------
-        # 3) Kafka로 anomaly 결과 publish
-        # --------------------------------------------------
-        # 원하는 zscore 고정값 
-        # fixed_zscore = 1.99 # 필요하면 args에서 받아도 됨 
-        # # struct 로 필요한 필드만 구성 
-        # json_df = df.select( 
-        #     F.col("send_timestamp").cast("string"), 
-        #     F.col("machine"), 
-        #     F.col("timestamp").cast("string"), # JSON 형태에 맞춰 string 변환 권장 
-        #     F.lit(fixed_zscore).alias("zscore") 
-        # )
         zscore_fixed = 2.575   # 99% anomaly cutoff
 
         # timestamp를 string으로 변환
-        kafka_df = result_df.select(
+        kafka_df = anomaly_df.select(
             F.col("machine").alias("key"),
             F.to_json(
                 F.struct(
