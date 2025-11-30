@@ -459,7 +459,7 @@ def main():
     )
     spark.sparkContext.setLogLevel("ERROR")
 
-    assembler, pca_model, components_T, mean_row_dict, threshold = initialization(spark)
+    assembler, pca_model, components_T, mean_row_dict, threshold = initialization(args, spark, logger)
 
     # rate 소스로 단순 트리거만 발생시키는 스트리밍
     rate_df = (spark.readStream
