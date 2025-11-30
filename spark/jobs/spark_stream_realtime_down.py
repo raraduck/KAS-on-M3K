@@ -188,7 +188,7 @@ def load_incremental_from_postgres(spark, args, last_ts, current_ts, logger):
 # foreachBatch용 핸들러
 # -----------------------------------------------------
 def make_batch_handler(spark, args, logger,
-        assembler, pca_model, components_T, mean_row, threshold
+        assembler, pca_model, components_T, mean_row, threshold, err_mean, err_std
     ):
 
     def _process_batch(_dummy_df, batch_id):
@@ -250,18 +250,18 @@ def make_batch_handler(spark, args, logger,
         scored_df = recon_df.withColumn(
             "recon_error", recon_error(col("features"), col("reconstructed"))
         )
-
+        zscore_df = scored_df.withColumn(
+            "zscore",
+            (F.col("recon_error") - F.lit(err_mean)) / F.lit(err_std)
+        )
         # anomaly flag
-        result_df = scored_df.withColumn(
+        result_df = zscore_df.withColumn(
             "is_anomaly", F.col("recon_error") > lit(threshold)
         )
 
         anomaly_df = result_df.filter(F.col("is_anomaly") == True)
         anomaly_count = anomaly_df.count()
         logger.info(f"[Batch {batch_id}] anomaly count = {anomaly_count}")
-
-
-        zscore_fixed = 2.575   # 99% anomaly cutoff
 
         # timestamp를 string으로 변환
         kafka_df = anomaly_df.select(
@@ -271,7 +271,7 @@ def make_batch_handler(spark, args, logger,
                     F.col("send_timestamp").cast("string").alias("send_timestamp"),
                     F.col("machine"),
                     F.col("timestamp").cast("string").alias("timestamp"),
-                    F.lit(zscore_fixed).alias("zscore")
+                    F.col("zscore")
                 )
             ).alias("value")
         )
@@ -406,8 +406,10 @@ def initialization(args, spark, logger):
     errors = [row["recon_error"] for row in train_err.select("recon_error").collect()]
     threshold = np.quantile(errors, 0.99)
 
+    err_mean = np.mean(errors)
+    err_std  = np.std(errors)
     # 🟩 반환해야 스트리밍에서 anomaly detection 가능
-    return assembler, pca_model, components_T, mean_row.asDict(), threshold
+    return assembler, pca_model, components_T, mean_row.asDict(), threshold, err_mean, err_std
 
 
 
@@ -452,7 +454,7 @@ def main():
     )
     spark.sparkContext.setLogLevel("ERROR")
 
-    assembler, pca_model, components_T, mean_row_dict, threshold = initialization(args, spark, logger)
+    assembler, pca_model, components_T, mean_row_dict, threshold, err_mean, err_std = initialization(args, spark, logger)
 
     # rate 소스로 단순 트리거만 발생시키는 스트리밍
     rate_df = (spark.readStream
@@ -477,7 +479,7 @@ def main():
         .foreachBatch(
             make_batch_handler(
                 spark, args, logger,
-                assembler, pca_model, components_T, mean_row_dict, threshold
+                assembler, pca_model, components_T, mean_row_dict, threshold, err_mean, err_std
             )
         )
         .start()
