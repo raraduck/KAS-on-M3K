@@ -86,7 +86,7 @@ def main():
         WHERE send_timestamp >= '{cutoff}'
         AND usage = 'train'
         AND machine = '{args.machine}'
-        ) AS sub
+        ) sub
     """
 
     # 1️⃣ PostgreSQL → DataFrame
