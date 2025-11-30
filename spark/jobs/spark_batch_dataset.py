@@ -47,6 +47,7 @@ def parse_args():
     parser.add_argument("--pg-pass", default=os.getenv("PG_PASS", "postgres"))
     parser.add_argument("--pg-table", default=os.getenv("PG_TABLE", "smd_data_lake"))
 
+    parser.add_argument("--machine", default="machine-1-1")
     parser.add_argument("--s3-bucket", default=os.getenv("S3_BUCKET", "s3a://kas-on-m3k/smd-dataset"))
     parser.add_argument("--format", default=os.getenv("S3_FORMAT", "csv"))
 
@@ -84,6 +85,7 @@ def main():
         FROM {args.pg_table}
         WHERE send_timestamp >= '{cutoff}'
         AND usage = 'train'
+        AND machine = '{args.machine}'
         ) AS sub
     """
 
@@ -125,7 +127,8 @@ def main():
     logger.info(f"📅 Filtered {count} rows only for train")
 
     # # 3️⃣ S3 저장
-    s3_path = f"{args.s3_bucket}/export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    # s3_path = f"{args.s3_bucket}/export_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    s3_path = f"{args.s3_bucket}/{args.machine}"
     logger.info(f"💾 Saving to S3 path: {s3_path} (format={args.format})")
 
     if args.format == "csv":

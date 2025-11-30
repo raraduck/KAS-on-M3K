@@ -41,6 +41,11 @@ spec:
     - "4"
     - "--p-value"
     - "0.05"
+    # S3 관련
+    - "--s3-bucket"
+    - "s3a://kas-on-m3k/smd-dataset"
+    - "--format"
+    - "csv"
   driver:
     cores: 1
     memory: 512m

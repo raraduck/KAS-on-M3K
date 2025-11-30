@@ -22,8 +22,10 @@ from pyspark.sql import functions as F
 from pyspark.sql.types import DoubleType
 
 from pyspark.ml.feature import VectorAssembler, StandardScaler, PCA
-from pyspark.ml.linalg import Vectors, DenseVector
+from pyspark.ml.linalg import Vectors, DenseVector, VectorUDT
+from pyspark.sql.functions import udf, col, lit, avg
 
+import numpy as np
 # -----------------------------------------------------
 # Kafka Topic 생성
 # -----------------------------------------------------
@@ -183,125 +185,27 @@ def load_incremental_from_postgres(spark, args, last_ts, current_ts, logger):
 
 
 # -----------------------------------------------------
-# PCA Reconstruction 기반 이상감지
-# -----------------------------------------------------
-def run_pca_anomaly_detection(df, args, logger):
-    """
-    - feature: col_0 ~ col_37 만 사용
-    - StandardScaler -> PCA(k) 학습 (배치 단위)
-    - reconstruction error = ||x - x_hat||^2
-    - 배치 내 score 분포로 z-score 계산
-    - abs(zscore) >= threshold 인 것만 anomaly 로 반환
-    """
-
-    feature_cols = [f"col_{i}" for i in range(38)]
-    for c in feature_cols:
-        if c not in df.columns:
-            raise ValueError(f"Feature column missing: {c}")
-
-    # NaN 제거 (필요시 더 정교한 imputation 가능)
-    df_clean = df.dropna(subset=feature_cols)
-
-    if df_clean.rdd.isEmpty():
-        logger.info("정제된 데이터가 없음 (NaN 제거 후) → AD 스킵")
-        return None
-
-    # 1. VectorAssembler
-    assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
-    vec_df = assembler.transform(df_clean)
-
-    # 2. StandardScaler (mean=0, var=1)
-    scaler = StandardScaler(withMean=True, withStd=True, inputCol="features", outputCol="scaledFeatures")
-    scaler_model = scaler.fit(vec_df)
-    scaled_df = scaler_model.transform(vec_df)
-
-    # 3. PCA (args.pca_k 차원으로 축소)
-    pca = PCA(k=args.pca_k, inputCol="scaledFeatures", outputCol="pcaFeatures")
-    pca_model = pca.fit(scaled_df)
-    pca_df = pca_model.transform(scaled_df)
-
-    # 4. Reconstruction: x_hat = (x * V_k) * V_k^T
-    #    Spark PCA 모델의 pc는 DenseMatrix (열 = 주성분)
-    pc = pca_model.pc.toArray()  # shape: [n_features, k]
-    import numpy as np
-
-    Vk = np.array(pc)  # [n_features, k]
-
-    # BroadCast to executors
-    spark = df.sparkSession
-    bc_Vk = spark.sparkContext.broadcast(Vk)
-
-    def reconstruction_error(scaled_vec):
-        """
-        scaled_vec: DenseVector (표준화된 x)
-        return: squared L2 norm of (x - x_hat)
-        """
-        if scaled_vec is None:
-            return float("nan")
-        x = np.array(scaled_vec)
-        V = bc_Vk.value  # [n_features, k]
-        # low-dim representation
-        z = x.dot(V)             # [k]
-        # reconstruct
-        x_hat = z.dot(V.T)       # [n_features]
-        diff = x - x_hat
-        return float(np.dot(diff, diff))   # ||x - x_hat||^2
-
-    from pyspark.sql.functions import udf
-    recon_err_udf = udf(reconstruction_error, DoubleType())
-
-    scored_df = pca_df.withColumn("recon_error", recon_err_udf(F.col("scaledFeatures")))
-
-    # 5. z-score 계산 (배치 전체에서 평균/표준편차)
-    stats = scored_df.agg(
-        F.avg("recon_error").alias("mu"),
-        F.stddev("recon_error").alias("sigma")
-    ).collect()[0]
-
-    mu = stats["mu"]
-    sigma = stats["sigma"] if stats["sigma"] not in (0, None) else 1e-9
-
-    logger.info(f"recon_error 통계: mu={mu:.6f}, sigma={sigma:.6f}")
-
-    scored_df = scored_df.withColumn(
-        "zscore",
-        (F.col("recon_error") - F.lit(mu)) / F.lit(sigma)
-    )
-
-    # 6. threshold 이상만 anomaly 로 필터링
-    anomalies = scored_df.filter(F.abs(F.col("zscore")) >= F.lit(args.p_value))
-
-    if anomalies.rdd.isEmpty():
-        logger.info(f"이번 배치에서 anomaly 없음 (threshold={args.p_value})")
-        return None
-
-    logger.info(f"이번 배치 anomaly 개수: {anomalies.count()}")
-
-    # Kafka로 보낼 때 필요한 필드만 남기거나, 전체를 JSON으로 쏴도 됨
-    # 여기서는 주요 메타 + score만 남기고 예시
-    out_cols = [
-        "send_timestamp", "machine", "timestamp", "usage", "label",
-        "recon_error", "zscore"
-    ] + feature_cols
-
-    return anomalies.select(*[c for c in out_cols if c in anomalies.columns])
-
-
-# -----------------------------------------------------
 # foreachBatch용 핸들러
 # -----------------------------------------------------
-def make_batch_handler(spark, args, logger):
+def make_batch_handler(spark, args, logger,
+        assembler, pca_model, components_T, mean_row, threshold
+    ):
+
     def _process_batch(_dummy_df, batch_id):
         logger.info("=" * 60)
         logger.info(f"[Batch {batch_id}] 시작")
 
         kst = pytz.timezone("Asia/Seoul")
+        current_ts = datetime.now(tz=kst)
+        last_ts = get_last_checkpoint(args, logger)
 
         current_ts = datetime.now(tz=kst)
         # current_ts = datetime.utcnow()
         last_ts = get_last_checkpoint(args, logger)
 
+        # --------------------------------------------------
         # 1) PostgreSQL에서 증분 데이터 로드
+        # --------------------------------------------------
         df = load_incremental_from_postgres(spark, args, last_ts, current_ts, logger)
         row_count = df.count()
         if row_count == 0:
@@ -310,48 +214,78 @@ def make_batch_handler(spark, args, logger):
             return
 
         logger.info(f"[Batch {batch_id}] 증분 데이터 로드: {row_count} rows")
+        
 
-        # # 2) 이상감지 수행
-        # anomalies = run_pca_anomaly_detection(df, args, logger)
-        # if anomalies is None:
-        #     # anomaly 없더라도 checkpoint는 갱신
-        #     max_ts = df.agg(F.max("send_timestamp")).collect()[0][0] or current_ts
-        #     update_checkpoint(args, logger, max_ts)
-        #     logger.info(f"[Batch {batch_id}] anomaly 없음, 종료")
-        #     return
+        # --------------------------------------------------
+        # 2) PCA 기반 anomaly detection
+        # --------------------------------------------------
+        feature_cols = [f"col_{i}" for i in range(38)]
 
-        # # 3) anomaly 결과를 Kafka topic 으로 write (배치 모드)
-        # kafka_df = anomalies.withColumn(
-        #     "key", F.col("machine").cast("string")
-        # ).selectExpr(
-        #     "CAST(key AS STRING) AS key",
-        #     "to_json(struct(*)) AS value"
+        # mean centering
+        for c in feature_cols:
+            df = df.withColumn(c, col(c) - lit(mean_row[c]))
+
+        # assemble
+        vec_df = assembler.transform(df)
+
+        # pca transform
+        pca_df = pca_model.transform(vec_df)
+
+        # reconstruction udf
+        @udf(returnType=VectorUDT())
+        def reconstruct(pca_vec):
+            p = np.array(pca_vec.toArray())  # (k,)
+            x_hat = p.dot(components_T)      # reconstructed (38,)
+            return Vectors.dense(x_hat)
+
+        recon_df = pca_df.withColumn("reconstructed", reconstruct(col("pca_features")))
+
+        # reconstruction error udf
+        @udf(returnType=DoubleType())
+        def recon_error(x, x_hat):
+            a = np.array(x.toArray())
+            b = np.array(x_hat.toArray())
+            return float(np.sum((a - b) ** 2))
+
+        scored_df = recon_df.withColumn(
+            "recon_error", recon_error(col("features"), col("reconstructed"))
+        )
+
+        # anomaly flag
+        result_df = scored_df.withColumn(
+            "is_anomaly", F.col("recon_error") > lit(threshold)
+        )
+
+        anomaly_count = result_df.filter("is_anomaly = true").count()
+        logger.info(f"[Batch {batch_id}] anomaly count = {anomaly_count}")
+
+
+        # --------------------------------------------------
+        # 3) Kafka로 anomaly 결과 publish
+        # --------------------------------------------------
+        # 원하는 zscore 고정값 
+        # fixed_zscore = 1.99 # 필요하면 args에서 받아도 됨 
+        # # struct 로 필요한 필드만 구성 
+        # json_df = df.select( 
+        #     F.col("send_timestamp").cast("string"), 
+        #     F.col("machine"), 
+        #     F.col("timestamp").cast("string"), # JSON 형태에 맞춰 string 변환 권장 
+        #     F.lit(fixed_zscore).alias("zscore") 
         # )
+        zscore_fixed = 2.575   # 99% anomaly cutoff
 
-        # (kafka_df.write
-        #     .format("kafka")
-        #     .option("kafka.bootstrap.servers", args.kafka_bootstrap)
-        #     .option("topic", args.eph_topic)
-        #     .save())
+        # timestamp를 string으로 변환
+        kafka_df = result_df.selectExpr(
+            "machine",
+            "CAST(send_timestamp AS STRING) AS send_timestamp",
+            "CAST(timestamp AS STRING) AS timestamp",
+            "CAST(recon_error AS DOUBLE) AS recon_error",
+            "CAST(is_anomaly AS BOOLEAN) AS is_anomaly",
+            f"{zscore_fixed} AS zscore",
+            "to_json(struct(*)) AS value",
+            "machine AS key"
+        ).select("key", "value")
 
-        # 원하는 zscore 고정값
-        fixed_zscore = 1.99   # 필요하면 args에서 받아도 됨
-
-        # struct 로 필요한 필드만 구성
-        json_df = df.select(
-            F.col("send_timestamp").cast("string"),
-            F.col("machine"),
-            F.col("timestamp").cast("string"),   # JSON 형태에 맞춰 string 변환 권장
-            F.lit(fixed_zscore).alias("zscore")
-        )
-
-        # JSON 직렬화
-        kafka_df = json_df.selectExpr(
-            "machine AS key",                     # Kafka key
-            "to_json(struct(*)) AS value"         # 원하는 JSON
-        )
-
-        # Kafka write
         (kafka_df.write
             .format("kafka")
             .option("kafka.bootstrap.servers", args.kafka_bootstrap)
@@ -359,13 +293,36 @@ def make_batch_handler(spark, args, logger):
             .save()
         )
 
+
+        # # JSON 직렬화
+        # kafka_df = json_df.selectExpr(
+        #     "machine AS key",                     # Kafka key
+        #     "to_json(struct(*)) AS value"         # 원하는 JSON
+        # )
+
+        # # Kafka write
+        # (kafka_df.write
+        #     .format("kafka")
+        #     .option("kafka.bootstrap.servers", args.kafka_bootstrap)
+        #     .option("topic", args.eph_topic)
+        #     .save()
+        # )
+
         logger.info(f"[Batch {batch_id}] anomaly 결과 Kafka 전송 완료")
 
-        # 4) 체크포인트 갱신 (이번에 처리한 send_timestamp 최대값 기준)
+        # --------------------------------------------------
+        # 4) 체크포인트 갱신
+        # --------------------------------------------------
         max_ts = df.agg(F.max("send_timestamp")).collect()[0][0] or current_ts
         update_checkpoint(args, logger, max_ts)
 
         logger.info(f"[Batch {batch_id}] 종료")
+
+        # # 4) 체크포인트 갱신 (이번에 처리한 send_timestamp 최대값 기준)
+        # max_ts = df.agg(F.max("send_timestamp")).collect()[0][0] or current_ts
+        # update_checkpoint(args, logger, max_ts)
+
+        # logger.info(f"[Batch {batch_id}] 종료")
     return _process_batch
 
 
@@ -403,7 +360,65 @@ def parse_args():
     parser.add_argument("--p-value", type=float, default=0.05,
                         help="|pvalue| >= threshold 를 anomaly 로 간주")
 
+    parser.add_argument("--machine", default="machine-1-1")
+    parser.add_argument("--s3-bucket", default=os.getenv("S3_BUCKET", "s3a://kas-on-m3k/smd-dataset"))
+    parser.add_argument("--format", default=os.getenv("S3_FORMAT", "csv"))
+
     return parser.parse_args()
+
+
+def initialization(args, spark, logger):
+    s3_path = f"{args.s3_bucket}/{args.machine}"
+
+    logger.info(f"📥 Loading PCA training dataset: {s3_path}")
+
+    # sdf_train = spark.createDataFrame(df_train)
+    sdf_train = (
+        spark.read
+        .option("header", True)
+        .option("inferSchema", True)
+        .csv(s3_path)
+    )
+    feature_cols = [c for c in sdf_train.columns if 'col' in c]
+    mean_row = sdf_train.select([avg(c).alias(c) for c in feature_cols]).collect()[0]
+
+    for c in feature_cols:
+        sdf_train = sdf_train.withColumn(c, col(c) - lit(mean_row[c]))
+
+    assembler = VectorAssembler(inputCols=feature_cols, outputCol="features")
+
+    vec_train = assembler.transform(sdf_train).select("features")
+
+    # pca_k = 9
+    pca = PCA(k=args.pca_k, inputCol="features", outputCol="pca_features")
+    pca_model = pca.fit(vec_train)
+
+    train_pca = pca_model.transform(vec_train)
+
+    components = np.array(pca_model.pc.toArray())
+    components_T = components.T
+
+    @udf(returnType=VectorUDT())
+    def reconstruct(pca_vec):
+        p = np.array(pca_vec.toArray())                 # shape (k,)
+        x_hat = p.dot(components_T)                     # no mean added
+        return Vectors.dense(x_hat)
+
+    train_recon = train_pca.withColumn("reconstructed", reconstruct(col("pca_features")))
+
+    @udf(returnType=DoubleType())
+    def recon_error(x, x_hat):
+        a = np.array(x.toArray())
+        b = np.array(x_hat.toArray())
+        return float(np.sum((a - b)**2))
+
+    train_err = train_recon.withColumn("recon_error", recon_error(col("features"), col("reconstructed")))
+    errors = [row["recon_error"] for row in train_err.select("recon_error").collect()]
+    threshold = np.quantile(errors, 0.99)
+
+    # 🟩 반환해야 스트리밍에서 anomaly detection 가능
+    return assembler, pca_model, components_T, mean_row.asDict(), threshold
+
 
 
 # -----------------------------------------------------
@@ -444,6 +459,8 @@ def main():
     )
     spark.sparkContext.setLogLevel("ERROR")
 
+    assembler, pca_model, components_T, mean_row_dict, threshold = initialization(spark)
+
     # rate 소스로 단순 트리거만 발생시키는 스트리밍
     rate_df = (spark.readStream
         .format("rate")
@@ -451,13 +468,27 @@ def main():
         .load()
     )
 
-    query = (rate_df.writeStream
+    # query = (rate_df.writeStream
+    #     .outputMode("update")
+    #     .trigger(processingTime=args.trigger_interval)
+    #     .option("checkpointLocation", args.checkpoint_location)
+    #     .foreachBatch(make_batch_handler(spark, args, logger))
+    #     .start()
+    # )
+
+    query = (
+    rate_df.writeStream
         .outputMode("update")
         .trigger(processingTime=args.trigger_interval)
         .option("checkpointLocation", args.checkpoint_location)
-        .foreachBatch(make_batch_handler(spark, args, logger))
+        .foreachBatch(
+            make_batch_handler(
+                spark, args, logger,
+                assembler, pca_model, components_T, mean_row_dict, threshold
+            )
+        )
         .start()
-    )
+)
 
     logger.info("Streaming Query 시작됨. 종료하려면 Ctrl+C를 누르세요.")
 
