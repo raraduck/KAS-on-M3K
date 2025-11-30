@@ -275,16 +275,17 @@ def make_batch_handler(spark, args, logger,
         zscore_fixed = 2.575   # 99% anomaly cutoff
 
         # timestamp를 string으로 변환
-        kafka_df = result_df.selectExpr(
-            "machine",
-            "CAST(send_timestamp AS STRING) AS send_timestamp",
-            "CAST(timestamp AS STRING) AS timestamp",
-            "CAST(recon_error AS DOUBLE) AS recon_error",
-            "CAST(is_anomaly AS BOOLEAN) AS is_anomaly",
-            f"{zscore_fixed} AS zscore",
-            "to_json(struct(*)) AS value",
-            "machine AS key"
-        ).select("key", "value")
+        kafka_df = result_df.select(
+            F.col("machine").alias("key"),
+            F.to_json(
+                F.struct(
+                    F.col("send_timestamp").cast("string").alias("send_timestamp"),
+                    F.col("machine"),
+                    F.col("timestamp").cast("string").alias("timestamp"),
+                    F.lit(zscore_fixed).alias("zscore")
+                )
+            ).alias("value")
+        )
 
         (kafka_df.write
             .format("kafka")
