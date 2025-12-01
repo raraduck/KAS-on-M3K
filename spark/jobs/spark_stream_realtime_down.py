@@ -173,16 +173,16 @@ def load_incremental_from_postgres(spark, args, last_ts, current_ts, logger):
         .option("password", args.pg_pass)
         .option("driver", "org.postgresql.Driver")
         .option("sessionInitStatement", "SET TIMEZONE TO 'Asia/Seoul'")
+        .load()
+    )
+    return df
+
+
         # 필요하면 병렬 읽기 옵션 추가 (send_timestamp를 partitionColumn으로 쓰기 애매하면 생략)
         # .option("numPartitions", 4)
         # .option("partitionColumn", "send_timestamp")
         # .option("lowerBound", ...)
         # .option("upperBound", ...)
-        .load()
-    )
-
-    return df
-
 
 # -----------------------------------------------------
 # foreachBatch용 핸들러
@@ -196,12 +196,12 @@ def make_batch_handler(spark, args, logger,
         logger.info(f"[Batch {batch_id}] 시작")
 
         kst = pytz.timezone("Asia/Seoul")
-        current_ts = datetime.now(tz=kst)
         last_ts = get_last_checkpoint(args, logger)
+        current_ts = datetime.now(tz=kst)
 
-        current_ts = datetime.now(tz=kst)
-        # current_ts = datetime.utcnow()
-        last_ts = get_last_checkpoint(args, logger)
+        # current_ts = datetime.now(tz=kst)
+        # # current_ts = datetime.utcnow()
+        # last_ts = get_last_checkpoint(args, logger)
 
         # --------------------------------------------------
         # 1) PostgreSQL에서 증분 데이터 로드
