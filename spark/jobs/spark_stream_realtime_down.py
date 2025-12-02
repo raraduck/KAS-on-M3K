@@ -403,11 +403,29 @@ def initialization(args, spark, logger):
         return float(np.sum((a - b)**2))
 
     train_err = train_recon.withColumn("recon_error", recon_error(col("features"), col("reconstructed")))
-    errors = [row["recon_error"] for row in train_err.select("recon_error").collect()]
-    threshold = np.quantile(errors, 0.99)
 
-    err_mean = np.mean(errors)
-    err_std  = np.std(errors)
+    # collect 는 driver 에 메모리 부담을 줌 (OOM 리스크)
+    # errors = [row["recon_error"] for row in train_err.select("recon_error").collect()]
+    # threshold = np.quantile(errors, 0.99)
+    # err_mean = np.mean(errors)
+    # err_std  = np.std(errors)
+
+    # Spark executor들이 분산으로 quantile/mean/stddev 계산
+    # collect로 전체를 끌어오지 않고 Spark 쪽에서 집계
+    stats_row = (
+        train_err
+        .agg(
+            F.expr("percentile_approx(recon_error, 0.99)").alias("threshold"),
+            F.mean("recon_error").alias("err_mean"),
+            F.stddev_samp("recon_error").alias("err_std")
+        )
+        .first()
+    )
+
+    threshold = float(stats_row["threshold"])
+    err_mean  = float(stats_row["err_mean"])
+    err_std   = float(stats_row["err_std"])
+
     # 🟩 반환해야 스트리밍에서 anomaly detection 가능
     return assembler, pca_model, components_T, mean_row.asDict(), threshold, err_mean, err_std
 

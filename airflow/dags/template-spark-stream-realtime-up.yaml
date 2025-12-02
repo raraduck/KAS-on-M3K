@@ -37,6 +37,13 @@ spec:
     cores: 1
     memory: 512m
     serviceAccount: spark-operator-spark
+    # ▼▼▼ Spark UI 활성화 핵심 설정 ▼▼▼
+    # sparkConf:
+    #   "spark.ui.enabled": "true"
+    #   "spark.ui.port": "4040"
+    # serviceType: NodePort
+    # exposedPort: 4040
+    # ▲▲▲ Spark UI 활성화 핵심 설정 ▲▲▲
     volumeMounts:
       - name: data
         mountPath: /opt/spark-data
